@@ -20,27 +20,62 @@ class JobService:
         # keep db param for compatibility; Beanie document models used directly
         self.db = db
         self.json_agent_manager = AgentManager()
-    def clean_html(self, html_string):
-    	soup = BeautifulSoup(html_string, 'html.parser')
+    def clean_html_body(self, html_string):
+        """
+        Parses an HTML string, extracts the content of the <body> tag, 
+        and then cleans it by removing classes, scripts, CSS, iframes, 
+        styles, SVG tags, and empty <div> tags.
 
-    # 2. Remove specific tags (scripts, styles, iframes)
-    # The .extract() method removes the tag and its contents from the tree
-    	for tag_name in ['script', 'style', 'iframe']:
-        	for tag in soup.find_all(tag_name):
-            		tag.extract()
+        Args:
+            html_string (str): The HTML string to be cleaned.
 
-    # 3. Remove attributes (class and style) from all remaining tags
-    	for tag in soup.find_all(True):  # find_all(True) gets all tags
-        # Remove 'class' attribute
-        	if 'class' in tag.attrs:
-            		del tag['class']
+        Returns:
+            str: The cleaned HTML content from within the <body> tag.
+        """
+        # 1. Parse the HTML string
+        soup = BeautifulSoup(html_string, 'html.parser')
         
-        # Remove 'style' attribute (inline CSS)
-        	if 'style' in tag.attrs:
-            		del tag['style']
+        # 2. Find the <body> tag
+        body_tag = soup.find('body')
+        
+        # Set the target content for cleaning (body or entire soup if no body found)
+        target_content = body_tag if body_tag else soup
 
-    
-    	return str(soup.decode())
+        # 3. Remove specific tags (scripts, styles, iframes, SVG)
+        tags_to_remove = ['script', 'style', 'iframe', 'svg']
+        for tag_name in tags_to_remove:
+            for tag in target_content.find_all(tag_name):
+                tag.extract()
+
+        # 4. Remove attributes (class and style) from all remaining tags
+        # This loop affects all tags found within the target_content
+        for tag in target_content.find_all(True):
+            if 'class' in tag.attrs:
+                del tag['class']
+            
+            if 'style' in tag.attrs:
+                del tag['style']
+
+        # 5. Remove empty <div> tags
+        # This must be done *after* removing scripts/styles/attributes, 
+        # as removing content might make a <div> empty.
+        # We loop backward to handle nested empty divs correctly.
+        divs = target_content.find_all('div')
+        for div in reversed(divs):
+            # Check if the div has no content (only whitespace or is empty)
+            # .get_text(strip=True) ignores whitespace and returns content
+            if not div.get_text(strip=True) and not div.find(True):
+                # Also check if it contains any other empty tags that were missed
+                # We use .find(True) to check for any child tags
+                div.extract()
+
+        # 6. Return the cleaned content of the body tag
+        if body_tag:
+            # Use decode_contents() to return content *inside* <body>
+            return body_tag.decode_contents()
+        else:
+            # Return the entire cleaned soup if body wasn't found
+            return str(target_content.decode_contents())
     async def _verify_token_and_get_user_id(self, token: str) -> str:
         """
         Verify the token and return the associated user_id.
@@ -84,7 +119,7 @@ class JobService:
         token = str(job_data.get("token"))
         user_id = await self._verify_token_and_get_user_id(token)
         job_description_raw = job_data.get("job_descriptions")
-        job_description = self.clean_html(job_description_raw)
+        job_description = self.clean_html_body(job_description_raw)
         job_id = str(uuid.uuid4())
         job = Job(job_id=job_id,user_id=user_id,content=job_description)
         await job.insert()
