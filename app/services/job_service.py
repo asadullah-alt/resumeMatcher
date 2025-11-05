@@ -4,7 +4,7 @@ import logging
 
 from typing import List, Dict, Any, Optional
 from pydantic import ValidationError
-
+from bs4 import BeautifulSoup, Tag
 from app.agent import AgentManager
 from app.prompt import prompt_factory
 from app.schemas.json import json_schema_factory
@@ -20,7 +20,27 @@ class JobService:
         # keep db param for compatibility; Beanie document models used directly
         self.db = db
         self.json_agent_manager = AgentManager()
+    def clean_html(self, html_string):
+    	soup = BeautifulSoup(html_string, 'html.parser')
 
+    # 2. Remove specific tags (scripts, styles, iframes)
+    # The .extract() method removes the tag and its contents from the tree
+    	for tag_name in ['script', 'style', 'iframe']:
+        	for tag in soup.find_all(tag_name):
+            		tag.extract()
+
+    # 3. Remove attributes (class and style) from all remaining tags
+    	for tag in soup.find_all(True):  # find_all(True) gets all tags
+        # Remove 'class' attribute
+        	if 'class' in tag.attrs:
+            		del tag['class']
+        
+        # Remove 'style' attribute (inline CSS)
+        	if 'style' in tag.attrs:
+            		del tag['style']
+
+    
+    	return str(soup.decode())
     async def _verify_token_and_get_user_id(self, token: str) -> str:
         """
         Verify the token and return the associated user_id.
@@ -63,7 +83,8 @@ class JobService:
         logger.info(f"Welcome to the job creator")
         token = str(job_data.get("token"))
         user_id = await self._verify_token_and_get_user_id(token)
-        job_description = job_data.get("job_descriptions")
+        job_description_raw = job_data.get("job_descriptions")
+        job_description = self.clean_html(job_description_raw)
         job_id = str(uuid.uuid4())
         job = Job(job_id=job_id,user_id=user_id,content=job_description)
         await job.insert()
