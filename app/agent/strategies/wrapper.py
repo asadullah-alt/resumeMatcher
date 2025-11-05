@@ -23,7 +23,7 @@ class JSONWrapper(Strategy):
         """
         response = await provider(prompt, **generation_args)
         response = response.strip()
-        logger.info(f"provider response: {response}")
+       
 
         # 1) Try direct parse first
         try:

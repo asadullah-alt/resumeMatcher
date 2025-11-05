@@ -103,6 +103,7 @@ async def upload_resume(
             file_type=file.content_type,
             filename=file.filename,
             content_type="md",
+            token=token,
         )
     except ResumeValidationError as e:
         logger.warning(f"Resume validation failed: {str(e)}")

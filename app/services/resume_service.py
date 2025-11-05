@@ -69,6 +69,7 @@ class ResumeService:
         Returns:
             None
         """
+        logger.info(f"Converting file: {filename} of type: {file_type}")
         with tempfile.NamedTemporaryFile(
             delete=False, suffix=self._get_file_extension(file_type)
         ) as temp_file:
@@ -122,7 +123,7 @@ class ResumeService:
         Stores the parsed resume content in the database.
         """
         resume_id = str(uuid.uuid4())
-        logger.info(f"Inside store resume indb function")
+
         # Check for user by token in different fields
         user = await self.db.users.find_one({
             "$or": [
@@ -134,8 +135,9 @@ class ResumeService:
 
         if not user:
             logger.warning(f"No user found for token: {token}")
-        logger.info(f"Structured Resume userId: {user_id}")
+
         user_id = str(user['_id']) if user else None
+        logger.info(f"Structured Resume userId: {user_id}")
         resume = Resume(
             resume_id=resume_id,
             content=text_content,
@@ -147,7 +149,7 @@ class ResumeService:
         return resume_id
 
     async def _extract_and_store_structured_resume(
-        self, resume_id, resume_text: str
+        self, resume_id, resume_text: str,token: str = None
     ) -> None:
         """
         extract and store structured resume data in the database
@@ -247,6 +249,7 @@ class ResumeService:
                 validation_error=user_friendly_message,
                 message=f"Resume structure validation failed: {user_friendly_message}",
             )
+        logger.info(f"#########################Extracted sturctured resume################")
         return structured_resume.model_dump()
 
     async def get_resume_with_processed_data(self, resume_id: str) -> Optional[Dict]:
