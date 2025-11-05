@@ -4,7 +4,6 @@ from pydantic import BaseModel, Field
 
 
 class JobUploadRequest(BaseModel):
-    job_descriptions: List[str] = Field(
-        ..., description="List of job descriptions in markdown format"
-    )
-    resume_id: UUID = Field(..., description="UUID reference to the resume")
+    job_descriptions: str
+    url: str
+    token: str

@@ -52,7 +52,7 @@ class JobService:
             
         return str(user.id)
 
-    async def create_and_store_job(self, job_data: dict, token: str) -> List[str]:
+    async def create_and_store_job(self, job_data: dict) -> List[str]:
         """
         Stores job data in the database and returns a list of job IDs.
         
@@ -60,34 +60,15 @@ class JobService:
             job_data: Dictionary containing job information
             token: Authentication token
         """
-        resume_id = str(job_data.get("resume_id"))
+        logger.info(f"Welcome to the job creator")
+        token = str(job_data.get("token"))
         user_id = await self._verify_token_and_get_user_id(token)
-
-        if not await self._is_resume_available(resume_id):
-            raise AssertionError(
-                f"resume corresponding to resume_id: {resume_id} not found"
-            )
-
-        job_ids = []
-        for job_description in job_data.get("job_descriptions", []):
-            job_id = str(uuid.uuid4())
-            job = Job(
-                job_id=job_id,
-                user_id=user_id,
-                resume_id=str(resume_id),
-                content=job_description
-            )
-            await job.insert()
-
-            await self._extract_and_store_structured_job(
-                job_id=job_id,
-                user_id=user_id,
-                job_description_text=job_description
-            )
-            logger.info(f"Job ID: {job_id}")
-            job_ids.append(job_id)
-
-        return job_ids
+        job_description = job_data.get("job_descriptions")
+        job_id = str(uuid.uuid4())
+        job = Job(job_id=job_id,user_id=user_id,content=job_description)
+        await job.insert()
+        await self._extract_and_store_structured_job(job_id=job_id,user_id=user_id,job_description_text=job_description)
+        return job_id
 
     async def _is_resume_available(self, resume_id: str) -> bool:
         """

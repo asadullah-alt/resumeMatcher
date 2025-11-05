@@ -13,7 +13,6 @@ class ProcessedResume(Document):
     For compatibility with existing service logic we store structured
     blobs as JSON-encoded strings (same field names as before).
     """
-    user_id: str
     resume_id: str
     personal_data: Optional[str] = None
     experiences: Optional[str] = None

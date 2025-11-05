@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     # contributors can run the stack without editing environment variables.
     PROJECT_NAME: str = "Resume Matcher"
     FRONTEND_PATH: str = os.path.join(os.path.dirname(__file__), "frontend", "assets")
-    ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000","https://careerforge.datapsx.com"]
+    ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000","https://careerforge.datapsx.com","*"]
     DB_ECHO: bool = False
     PYTHONDONTWRITEBYTECODE: int = 1
     # MongoDB settings (default to local MongoDB and database name 'careerforge')
