@@ -1,20 +1,7 @@
-from .base import Base
-from sqlalchemy import Column, String, Table, ForeignKey
+"""Association placeholder.
 
+Relational association tables are not used with MongoDB/Beanie. We keep
+this module for compatibility but it is no-op for the document-based models.
+"""
 
-job_resume_association = Table(
-    "job_resume",
-    Base.metadata,
-    Column(
-        "processed_job_id",
-        String,
-        ForeignKey("processed_jobs.job_id"),
-        primary_key=True,
-    ),
-    Column(
-        "processed_resume_id",
-        String,
-        ForeignKey("processed_resumes.resume_id"),
-        primary_key=True,
-    ),
-)
+__all__ = []

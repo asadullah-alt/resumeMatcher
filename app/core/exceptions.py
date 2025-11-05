@@ -1,6 +1,5 @@
 import logging
 
-from sqlalchemy.exc import SQLAlchemyError
 from fastapi import Request, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
@@ -33,8 +32,9 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     )
 
 
-async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
-    logger.error(f"DB error on {request.url}: {exc} - {exc.with_traceback()}")
+async def db_exception_handler(request: Request, exc: Exception):
+    """Generic database error handler (replaces SQLAlchemy-specific handler)."""
+    logger.error(f"DB error on {request.url}: {exc}")
     return JSONResponse(
         status_code=500,
         content={

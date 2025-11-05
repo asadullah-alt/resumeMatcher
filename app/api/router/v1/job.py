@@ -2,7 +2,7 @@ import logging
 import traceback
 
 from uuid import uuid4
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any
 from fastapi import APIRouter, HTTPException, Depends, Request, status, Query
 from fastapi.responses import JSONResponse
 
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 async def upload_job(
     payload: JobUploadRequest,
     request: Request,
-    db: AsyncSession = Depends(get_db_session),
+    db: Any = Depends(get_db_session),
 ):
     """
     Accepts a job description as a MarkDown text and stores it in the database.
@@ -78,7 +78,7 @@ async def upload_job(
 async def get_job(
     request: Request,
     job_id: str = Query(..., description="Job ID to fetch data for"),
-    db: AsyncSession = Depends(get_db_session),
+    db: Any = Depends(get_db_session),
 ):
     """
     Retrieves job data from both job_model and processed_job model by job_id.

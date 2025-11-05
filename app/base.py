@@ -10,21 +10,24 @@ from starlette.middleware.sessions import SessionMiddleware
 from .api import health_check, v1_router, RequestIDMiddleware
 from .core import (
     settings,
-    async_engine,
+    init_db,
+    close_db,
     setup_logging,
     custom_http_exception_handler,
     validation_exception_handler,
     unhandled_exception_handler,
 )
-from .models import Base
+# models are Beanie documents and will be initialized by init_db
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with async_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
-    await async_engine.dispose()
+    # Initialize MongoDB / Beanie
+    await init_db(app)
+    try:
+        yield
+    finally:
+        await close_db()
 
 
 def create_app() -> FastAPI:

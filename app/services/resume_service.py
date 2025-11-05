@@ -5,12 +5,12 @@ import tempfile
 import logging
 
 from markitdown import MarkItDown
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
+from typing import Any
+
+from app.models import Resume, ProcessedResume
 from pydantic import ValidationError
 from typing import Dict, Optional
 
-from app.models import Resume, ProcessedResume
 from app.agent import AgentManager
 from app.prompt import prompt_factory
 from app.schemas.json import json_schema_factory
@@ -21,7 +21,9 @@ logger = logging.getLogger(__name__)
 
 
 class ResumeService:
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: object):
+        # db parameter retained for compatibility with FastAPI dependency injection
+        # but Beanie document models are used directly.
         self.db = db
         self.md = MarkItDown(enable_plugins=False)
         self.json_agent_manager = AgentManager()
@@ -119,14 +121,8 @@ class ResumeService:
         Stores the parsed resume content in the database.
         """
         resume_id = str(uuid.uuid4())
-        resume = Resume(
-            resume_id=resume_id, content=text_content, content_type=content_type
-        )
-
-        self.db.add(resume)
-        await self.db.flush()
-        await self.db.commit()
-
+        resume = Resume(resume_id=resume_id, content=text_content, content_type=content_type)
+        await resume.insert()
         return resume_id
 
     async def _extract_and_store_structured_resume(
@@ -186,8 +182,7 @@ class ResumeService:
                 ),
             )
 
-            self.db.add(processed_resume)
-            await self.db.commit()
+            await processed_resume.insert()
         except ResumeValidationError:
             # Re-raise validation errors to propagate to the upload endpoint
             raise
@@ -246,18 +241,15 @@ class ResumeService:
         Raises:
             ResumeNotFoundError: If the resume is not found
         """
-        resume_query = select(Resume).where(Resume.resume_id == resume_id)
-        resume_result = await self.db.execute(resume_query)
-        resume = resume_result.scalars().first()
+        # Use Beanie queries
+        resume = await Resume.find_one(Resume.resume_id == resume_id)
 
         if not resume:
             raise ResumeNotFoundError(resume_id=resume_id)
 
-        processed_query = select(ProcessedResume).where(
+        processed_resume = await ProcessedResume.find_one(
             ProcessedResume.resume_id == resume_id
         )
-        processed_result = await self.db.execute(processed_query)
-        processed_resume = processed_result.scalars().first()
 
         combined_data = {
             "resume_id": resume.resume_id,

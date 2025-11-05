@@ -1,19 +1,14 @@
-from .base import Base
-from sqlalchemy import Column, String, Integer
-# from sqlalchemy.orm import relationship
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Optional
+
+from beanie import Document
+from pydantic import Field
 
 
-class User(Base):
-    __tablename__ = "users"
+class User(Document):
+    email: str
+    name: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
-    id = Column(Integer, primary_key=True, index=True)
-
-    email = Column(String, unique=True, index=True, nullable=False)
-    name = Column(String, nullable=False)
-
-    # processed_resumes = relationship(
-    #     "ProcessedResume", back_populates="owner", cascade="all, delete-orphan"
-    # )
-    # processed_jobs = relationship(
-    #     "ProcessedJob", back_populates="owner", cascade="all, delete-orphan"
-    # )

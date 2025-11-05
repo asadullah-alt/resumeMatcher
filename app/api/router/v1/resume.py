@@ -2,7 +2,7 @@ import logging
 import traceback
 
 from uuid import uuid4
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi import (
     APIRouter,
@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 async def upload_resume(
     request: Request,
     file: UploadFile = File(...),
-    db: AsyncSession = Depends(get_db_session),
+    db: Any = Depends(get_db_session),
 ):
     """
     Accepts a PDF or DOCX file (max 2MB), converts it to HTML/Markdown, and stores it in the database.
@@ -132,7 +132,7 @@ async def upload_resume(
 async def score_and_improve(
     request: Request,
     payload: ResumeImprovementRequest,
-    db: AsyncSession = Depends(get_db_session),
+    db: Any = Depends(get_db_session),
     stream: bool = Query(
         False, description="Enable streaming response using Server-Sent Events"
     ),
@@ -233,7 +233,7 @@ async def score_and_improve(
 async def get_resume(
     request: Request,
     resume_id: str = Query(..., description="Resume ID to fetch data for"),
-    db: AsyncSession = Depends(get_db_session),
+    db: Any = Depends(get_db_session),
 ):
     """
     Retrieves resume data from both resume_model and processed_resume model by resume_id.

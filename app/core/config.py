@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000","https://careerforge.datapsx.com"]
     DB_ECHO: bool = False
     PYTHONDONTWRITEBYTECODE: int = 1
+    # MongoDB settings (default to local MongoDB and database name 'careerforge')
+    MONGO_URI: str = "mongodb://localhost:27017"
+    MONGO_DB_NAME: str = "careerforge"
+    # Backwards-compatible SQL settings (kept for reference; not used after migration)
     SYNC_DATABASE_URL: str = f"sqlite:///{_DEFAULT_DB_PATH}"
     ASYNC_DATABASE_URL: str = f"sqlite+aiosqlite:///{_DEFAULT_DB_PATH}"
     SESSION_SECRET_KEY: str = "resume-matcher-dev"

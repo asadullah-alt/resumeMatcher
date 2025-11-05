@@ -6,9 +6,7 @@ import markdown
 import numpy as np
 import re
 
-from sqlalchemy.future import select
 from pydantic import ValidationError
-from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, Optional, Tuple, AsyncGenerator, List
 
 from app.prompt import prompt_factory
@@ -36,7 +34,8 @@ class ScoreImprovementService:
     the scoring process.
     """
 
-    def __init__(self, db: AsyncSession, max_retries: int = 5):
+    def __init__(self, db, max_retries: int = 5):
+        # db param kept for FastAPI compatibility; operations use Beanie models
         self.db = db
         self.max_retries = max_retries
         self.md_agent_manager = AgentManager(strategy="md")
@@ -195,16 +194,14 @@ class ScoreImprovementService:
         """
         Fetches the resume from the database.
         """
-        query = select(Resume).where(Resume.resume_id == resume_id)
-        result = await self.db.execute(query)
-        resume = result.scalars().first()
+        resume = await Resume.find_one(Resume.resume_id == resume_id)
 
         if not resume:
             raise ResumeNotFoundError(resume_id=resume_id)
 
-        query = select(ProcessedResume).where(ProcessedResume.resume_id == resume_id)
-        result = await self.db.execute(query)
-        processed_resume = result.scalars().first()
+        processed_resume = await ProcessedResume.find_one(
+            ProcessedResume.resume_id == resume_id
+        )
 
         if not processed_resume:
             raise ResumeParsingError(resume_id=resume_id)
@@ -217,16 +214,12 @@ class ScoreImprovementService:
         """
         Fetches the job from the database.
         """
-        query = select(Job).where(Job.job_id == job_id)
-        result = await self.db.execute(query)
-        job = result.scalars().first()
+        job = await Job.find_one(Job.job_id == job_id)
 
         if not job:
             raise JobNotFoundError(job_id=job_id)
 
-        query = select(ProcessedJob).where(ProcessedJob.job_id == job_id)
-        result = await self.db.execute(query)
-        processed_job = result.scalars().first()
+        processed_job = await ProcessedJob.find_one(ProcessedJob.job_id == job_id)
 
         if not processed_job:
             raise JobParsingError(job_id=job_id)

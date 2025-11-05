@@ -1,62 +1,34 @@
-from sqlalchemy.types import JSON
-from sqlalchemy.orm import relationship
-from sqlalchemy import Column, String, Integer, ForeignKey, Text, DateTime, text
+from __future__ import annotations
 
-from .base import Base
-from .association import job_resume_association
+from datetime import datetime
+from typing import Optional, List
 
-
-class ProcessedResume(Base):
-    __tablename__ = "processed_resumes"
-
-    resume_id = Column(
-        String,
-        ForeignKey("resumes.resume_id", ondelete="CASCADE"),
-        primary_key=True,
-        index=True,
-    )
-    personal_data = Column(JSON, nullable=False)
-    experiences = Column(JSON, nullable=True)
-    projects = Column(JSON, nullable=True)
-    skills = Column(JSON, nullable=True)
-    research_work = Column(JSON, nullable=True)
-    achievements = Column(JSON, nullable=True)
-    education = Column(JSON, nullable=True)
-    extracted_keywords = Column(JSON, nullable=True)
-    processed_at = Column(
-        DateTime(timezone=True),
-        server_default=text("CURRENT_TIMESTAMP"),
-        nullable=False,
-        index=True,
-    )
-
-    # owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    # owner = relationship("User", back_populates="processed_resumes")
-    raw_resume = relationship("Resume", back_populates="raw_resume_association")
-
-    processed_jobs = relationship(
-        "ProcessedJob",
-        secondary=job_resume_association,
-        back_populates="processed_resumes",
-    )
+from beanie import Document
+from pydantic import Field
 
 
-class Resume(Base):
-    __tablename__ = "resumes"
+class ProcessedResume(Document):
+    """Processed resume stored as a Beanie Document.
 
-    id = Column(Integer, primary_key=True, index=True)
-    resume_id = Column(String, unique=True, nullable=False)
-    content = Column(Text, nullable=False)
-    content_type = Column(String, nullable=False)
-    created_at = Column(
-        DateTime(timezone=True),
-        server_default=text("CURRENT_TIMESTAMP"),
-        nullable=False,
-        index=True,
-    )
+    For compatibility with existing service logic we store structured
+    blobs as JSON-encoded strings (same field names as before).
+    """
 
-    raw_resume_association = relationship(
-        "ProcessedResume", back_populates="raw_resume", uselist=False
-    )
+    resume_id: str
+    personal_data: Optional[str] = None
+    experiences: Optional[str] = None
+    projects: Optional[str] = None
+    skills: Optional[str] = None
+    research_work: Optional[str] = None
+    achievements: Optional[str] = None
+    education: Optional[str] = None
+    extracted_keywords: Optional[str] = None
+    processed_at: datetime = Field(default_factory=datetime.utcnow)
 
-    jobs = relationship("Job", back_populates="resumes")
+
+class Resume(Document):
+    resume_id: str
+    content: str
+    content_type: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+

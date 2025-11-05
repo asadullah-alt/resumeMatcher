@@ -4,8 +4,6 @@ import logging
 
 from typing import List, Dict, Any, Optional
 from pydantic import ValidationError
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent import AgentManager
 from app.prompt import prompt_factory
@@ -18,7 +16,8 @@ logger = logging.getLogger(__name__)
 
 
 class JobService:
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: object):
+        # keep db param for compatibility; Beanie document models used directly
         self.db = db
         self.json_agent_manager = AgentManager()
 
@@ -36,12 +35,8 @@ class JobService:
         job_ids = []
         for job_description in job_data.get("job_descriptions", []):
             job_id = str(uuid.uuid4())
-            job = Job(
-                job_id=job_id,
-                resume_id=str(resume_id),
-                content=job_description,
-            )
-            self.db.add(job)
+            job = Job(job_id=job_id, resume_id=str(resume_id), content=job_description)
+            await job.insert()
 
             await self._extract_and_store_structured_job(
                 job_id=job_id, job_description_text=job_description
@@ -49,16 +44,14 @@ class JobService:
             logger.info(f"Job ID: {job_id}")
             job_ids.append(job_id)
 
-        await self.db.commit()
         return job_ids
 
     async def _is_resume_available(self, resume_id: str) -> bool:
         """
         Checks if a resume exists in the database.
         """
-        query = select(Resume).where(Resume.resume_id == resume_id)
-        result = await self.db.scalar(query)
-        return result is not None
+        resume = await Resume.find_one(Resume.resume_id == resume_id)
+        return resume is not None
 
     async def _extract_and_store_structured_job(
         self, job_id, job_description_text: str
@@ -106,9 +99,7 @@ class JobService:
             else None,
         )
 
-        self.db.add(processed_job)
-        await self.db.flush()
-        await self.db.commit()
+        await processed_job.insert()
 
         return job_id
 
@@ -155,16 +146,12 @@ class JobService:
         Raises:
             JobNotFoundError: If the job is not found
         """
-        job_query = select(Job).where(Job.job_id == job_id)
-        job_result = await self.db.execute(job_query)
-        job = job_result.scalars().first()
+        job = await Job.find_one(Job.job_id == job_id)
 
         if not job:
             raise JobNotFoundError(job_id=job_id)
 
-        processed_query = select(ProcessedJob).where(ProcessedJob.job_id == job_id)
-        processed_result = await self.db.execute(processed_query)
-        processed_job = processed_result.scalars().first()
+        processed_job = await ProcessedJob.find_one(ProcessedJob.job_id == job_id)
 
         combined_data = {
             "job_id": job.job_id,
