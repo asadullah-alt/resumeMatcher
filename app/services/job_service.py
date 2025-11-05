@@ -21,11 +21,47 @@ class JobService:
         self.db = db
         self.json_agent_manager = AgentManager()
 
-    async def create_and_store_job(self, job_data: dict) -> List[str]:
+    async def _verify_token_and_get_user_id(self, token: str) -> str:
+        """
+        Verify the token and return the associated user_id.
+        
+        Args:
+            token: The authentication token
+            
+        Returns:
+            str: The user_id associated with the token
+            
+        Raises:
+            ValueError: If token is invalid or user not found
+        """
+        from app.models import User
+        
+        if not token:
+            raise ValueError("Authentication token is required")
+            
+        user = await User.find_one({
+            "$or": [
+                {"google.token": token},
+                {"linkedin.token": token},
+                {"token": token}
+            ]
+        })
+        
+        if not user:
+            raise ValueError("Invalid token or user not found")
+            
+        return str(user.id)
+
+    async def create_and_store_job(self, job_data: dict, token: str) -> List[str]:
         """
         Stores job data in the database and returns a list of job IDs.
+        
+        Args:
+            job_data: Dictionary containing job information
+            token: Authentication token
         """
         resume_id = str(job_data.get("resume_id"))
+        user_id = await self._verify_token_and_get_user_id(token)
 
         if not await self._is_resume_available(resume_id):
             raise AssertionError(
@@ -35,11 +71,18 @@ class JobService:
         job_ids = []
         for job_description in job_data.get("job_descriptions", []):
             job_id = str(uuid.uuid4())
-            job = Job(job_id=job_id, resume_id=str(resume_id), content=job_description)
+            job = Job(
+                job_id=job_id,
+                user_id=user_id,
+                resume_id=str(resume_id),
+                content=job_description
+            )
             await job.insert()
 
             await self._extract_and_store_structured_job(
-                job_id=job_id, job_description_text=job_description
+                job_id=job_id,
+                user_id=user_id,
+                job_description_text=job_description
             )
             logger.info(f"Job ID: {job_id}")
             job_ids.append(job_id)
@@ -54,10 +97,15 @@ class JobService:
         return resume is not None
 
     async def _extract_and_store_structured_job(
-        self, job_id, job_description_text: str
+        self, job_id: str, user_id: str, job_description_text: str
     ):
         """
-        extract and store structured job data in the database
+        Extract and store structured job data in the database
+        
+        Args:
+            job_id: The ID of the job
+            user_id: The ID of the user who owns this job
+            job_description_text: The raw job description text
         """
         structured_job = await self._extract_structured_json(job_description_text)
         if not structured_job:
@@ -66,6 +114,7 @@ class JobService:
 
         processed_job = ProcessedJob(
             job_id=job_id,
+            user_id=user_id,
             job_title=structured_job.get("job_title"),
             company_profile=json.dumps(structured_job.get("company_profile"))
             if structured_job.get("company_profile")
@@ -133,25 +182,30 @@ class JobService:
             return None
         return structured_job.model_dump(mode="json")
 
-    async def get_job_with_processed_data(self, job_id: str) -> Optional[Dict]:
+    async def get_job_with_processed_data(self, job_id: str, token: str) -> Optional[Dict]:
         """
         Fetches both job and processed job data from the database and combines them.
 
         Args:
             job_id: The ID of the job to retrieve
+            token: Authentication token for user verification
 
         Returns:
             Combined data from both job and processed_job models
 
         Raises:
             JobNotFoundError: If the job is not found
+            ValueError: If token is invalid or user not found
         """
-        job = await Job.find_one(Job.job_id == job_id)
+        user_id = await self._verify_token_and_get_user_id(token)
+        job = await Job.find_one({"$and": [{"job_id": job_id}, {"user_id": user_id}]})
 
         if not job:
             raise JobNotFoundError(job_id=job_id)
 
-        processed_job = await ProcessedJob.find_one(ProcessedJob.job_id == job_id)
+        processed_job = await ProcessedJob.find_one(
+            {"$and": [{"job_id": job_id}, {"user_id": user_id}]}
+        )
 
         combined_data = {
             "job_id": job.job_id,

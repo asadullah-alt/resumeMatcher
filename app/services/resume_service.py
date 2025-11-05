@@ -54,7 +54,7 @@ class ResumeService:
 
 
     async def convert_and_store_resume(
-        self, file_bytes: bytes, file_type: str, filename: str, content_type: str = "md"
+        self, file_bytes: bytes, file_type: str, filename: str, content_type: str = "md", token: str = None
     ):
         """
         Converts resume file (PDF/DOCX) to text using MarkItDown and stores it in the database.
@@ -64,6 +64,7 @@ class ResumeService:
             file_type: MIME type of the file ("application/pdf" or "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
             filename: Original filename
             content_type: Output format ("md" for markdown or "html")
+            token: Authentication token for processing
 
         Returns:
             None
@@ -94,10 +95,10 @@ class ResumeService:
                 else:
                     raise Exception(f"File conversion failed: {error_msg}") from e
             
-            resume_id = await self._store_resume_in_db(text_content, content_type)
+            resume_id = await self._store_resume_in_db(text_content, content_type,token)
 
             await self._extract_and_store_structured_resume(
-                resume_id=resume_id, resume_text=text_content
+                resume_id=resume_id, resume_text=text_content,token=token
             )
 
             return resume_id
@@ -116,12 +117,32 @@ class ResumeService:
             return ".docx"
         return ""
 
-    async def _store_resume_in_db(self, text_content: str, content_type: str):
+    async def _store_resume_in_db(self, text_content: str, content_type: str, token: str) -> str:
         """
         Stores the parsed resume content in the database.
         """
         resume_id = str(uuid.uuid4())
-        resume = Resume(resume_id=resume_id, content=text_content, content_type=content_type)
+        logger.info(f"Inside store resume indb function")
+        # Check for user by token in different fields
+        user = await self.db.users.find_one({
+            "$or": [
+                {"token": token},
+                {"google.token": token},
+                {"linkedin.token": token}
+            ]
+        })
+
+        if not user:
+            logger.warning(f"No user found for token: {token}")
+        logger.info(f"Structured Resume userId: {user_id}")
+        user_id = str(user['_id']) if user else None
+        resume = Resume(
+            resume_id=resume_id,
+            content=text_content,
+            content_type=content_type,
+            user_id=user_id
+        )
+
         await resume.insert()
         return resume_id
 

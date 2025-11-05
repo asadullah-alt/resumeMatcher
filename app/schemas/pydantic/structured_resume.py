@@ -3,15 +3,15 @@ from pydantic import BaseModel, Field
 
 
 class Location(BaseModel):
-    city: str
-    country: str
+    city: Optional[str] = None
+    country: Optional[str] = None
 
 
 class PersonalData(BaseModel):
     firstName: str = Field(..., alias="firstName")
     lastName: Optional[str] = Field(..., alias="lastName")
-    email: str
-    phone: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
     linkedin: Optional[str] = None
     portfolio: Optional[str] = None
     location: Location
@@ -19,8 +19,8 @@ class PersonalData(BaseModel):
 
 class Experience(BaseModel):
     job_title: str = Field(..., alias="jobTitle")
-    company: str
-    location: str
+    company: Optional[str] = None
+    location: Optional[str] = None
     start_date: str = Field(..., alias="startDate")
     end_date: str = Field(..., alias="endDate")
     description: List[str]
@@ -31,7 +31,7 @@ class Experience(BaseModel):
 
 class Project(BaseModel):
     project_name: str = Field(..., alias="projectName")
-    description: str
+    description: Optional[str] = None
     technologies_used: List[str] = Field(..., alias="technologiesUsed")
     link: Optional[str] = None
     start_date: Optional[str] = Field(None, alias="startDate")
@@ -39,7 +39,7 @@ class Project(BaseModel):
 
 
 class Skill(BaseModel):
-    category: str
+    category: Optional[str] = None
     skill_name: str = Field(..., alias="skillName")
 
 
@@ -52,8 +52,8 @@ class ResearchWork(BaseModel):
 
 
 class Education(BaseModel):
-    institution: str
-    degree: str
+    institution: Optional[str] = None
+    degree: Optional[str] = None
     field_of_study: Optional[str] = Field(None, alias="fieldOfStudy")
     start_date: Optional[str] = Field(None, alias="startDate")
     end_date: Optional[str] = Field(None, alias="endDate")

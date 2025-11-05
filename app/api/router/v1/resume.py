@@ -39,6 +39,7 @@ logger = logging.getLogger(__name__)
 )
 async def upload_resume(
     request: Request,
+    token: str,
     file: UploadFile = File(...),
     db: Any = Depends(get_db_session),
 ):

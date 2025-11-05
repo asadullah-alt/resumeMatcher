@@ -24,15 +24,15 @@ class ExperienceItem(BaseModel):
 
 class EducationItem(BaseModel):
     id: int
-    institution: str
-    degree: str
+    institution: Optional[str] = None
+    degree: Optional[str] = None
     years: Optional[str] = None
     description: Optional[str] = None
 
 
 class ProjectItem(BaseModel):
     id: int
-    name: str
+    name: Optional[str] = None
     role: Optional[str] = None
     years: Optional[str] = None
     description: List[str] = []

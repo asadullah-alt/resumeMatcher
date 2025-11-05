@@ -8,6 +8,7 @@ from pydantic import Field
 
 
 class ProcessedJob(Document):
+    user_id: str
     job_id: str
     job_title: Optional[str] = None
     company_profile: Optional[str] = None
@@ -24,6 +25,7 @@ class ProcessedJob(Document):
 
 
 class Job(Document):
+    user_id: str
     job_id: str
     resume_id: str
     content: str
