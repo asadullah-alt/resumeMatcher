@@ -1,7 +1,7 @@
 import uuid
 import json
 import logging
-
+import re
 from typing import List, Dict, Any, Optional
 from pydantic import ValidationError
 from bs4 import BeautifulSoup, Tag
@@ -20,62 +20,89 @@ class JobService:
         # keep db param for compatibility; Beanie document models used directly
         self.db = db
         self.json_agent_manager = AgentManager()
-    def clean_html_body(self, html_string):
+    def clean_html_body(self,html_string):
         """
-        Parses an HTML string, extracts the content of the <body> tag, 
-        and then cleans it by removing classes, scripts, CSS, iframes, 
-        styles, SVG tags, and empty <div> tags.
+        Extracts text content from an HTML string, preserving line breaks 
+        and whitespace to mimic copying from a web browser.
+
+        The process focuses only on the content within the <body> tag (if present),
+        and completely removes scripts, styles, iframes, SVGs, and links (<a>).
+        Block elements are separated by two newlines (\n\n). <br> tags result 
+        in a single newline (\n).
 
         Args:
-            html_string (str): The HTML string to be cleaned.
+            html_string (str): The HTML string to extract text from.
 
         Returns:
-            str: The cleaned HTML content from within the <body> tag.
+            str: The extracted text with preserved formatting, stripped of 
+                excessive leading/trailing whitespace.
         """
-        # 1. Parse the HTML string
-        soup = BeautifulSoup(html_string, 'html.parser')
-        
-        # 2. Find the <body> tag
-        body_tag = soup.find('body')
-        
-        # Set the target content for cleaning (body or entire soup if no body found)
-        target_content = body_tag if body_tag else soup
+        try:
+            # 1. Parse the HTML string
+            soup = BeautifulSoup(html_string, 'html.parser')
 
-        # 3. Remove specific tags (scripts, styles, iframes, SVG)
-        tags_to_remove = ['script', 'style', 'iframe', 'svg']
-        for tag_name in tags_to_remove:
-            for tag in target_content.find_all(tag_name):
-                tag.extract()
-
-        # 4. Remove attributes (class and style) from all remaining tags
-        # This loop affects all tags found within the target_content
-        for tag in target_content.find_all(True):
-            if 'class' in tag.attrs:
-                del tag['class']
+            # 2. Scope to Body: Look only in the body tag. If not found, use the entire soup.
+            body_tag = soup.find('body')
+            target_content = body_tag if body_tag else soup
             
-            if 'style' in tag.attrs:
-                del tag['style']
+            # 3. Define tags that should introduce a specific amount of spacing
 
-        # 5. Remove empty <div> tags
-        # This must be done *after* removing scripts/styles/attributes, 
-        # as removing content might make a <div> empty.
-        # We loop backward to handle nested empty divs correctly.
-        divs = target_content.find_all('div')
-        for div in reversed(divs):
-            # Check if the div has no content (only whitespace or is empty)
-            # .get_text(strip=True) ignores whitespace and returns content
-            if not div.get_text(strip=True) and not div.find(True):
-                # Also check if it contains any other empty tags that were missed
-                # We use .find(True) to check for any child tags
-                div.extract()
+            # Tags that usually represent a paragraph or section break (two newlines)
+            MAJOR_BLOCK_TAGS = [
+                'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
+                'div', 'section', 'article', 'aside', 'main', 'nav', 'header', 'footer',
+                'li', 'ul', 'ol', 'blockquote', 'table', 'tr', 'form', 
+                'fieldset', 'legend', 'dt', 'dd', 'address', 'pre'
+            ]
+            
+            # Tags that usually represent a single line break
+            LINE_BREAK_TAGS = ['br']
 
-        # 6. Return the cleaned content of the body tag
-        if body_tag:
-            # Use decode_contents() to return content *inside* <body>
-            return body_tag.decode_contents()
-        else:
-            # Return the entire cleaned soup if body wasn't found
-            return str(target_content.decode_contents())
+            # 4. Explicitly remove unwanted tags (scripts, svgs, iframes, links, styles)
+            # This ensures their content is completely excluded from the result.
+            tags_to_remove_completely = ['script', 'svg', 'iframe', 'style', 'a']
+            for tag_name in tags_to_remove_completely:
+                for tag in target_content.find_all(tag_name):
+                    # Use .extract() to remove the tag and its contents
+                    tag.extract()
+                    
+            # 5. Insert two newlines before and after major block elements.
+            for tag_name in MAJOR_BLOCK_TAGS:
+                for tag in target_content.find_all(tag_name):
+                    # Insert two newlines before the tag (simulates top margin/break)
+                    tag.insert_before('\n\n')
+                    
+                    # Append two newlines if it's a general block element.
+                    # Skip list items/table rows as they are usually contained by the next break.
+                    if tag_name not in ['li', 'tr', 'dt', 'dd']:
+                        tag.append('\n\n')
+
+            # 6. Replace <br> tags with a single newline.
+            for br_tag in target_content.find_all(LINE_BREAK_TAGS):
+                br_tag.replace_with('\n')
+
+            # 7. Final Text Extraction: get all text content, preserving injected newlines
+            # Use get_text() on the target_content (body or soup).
+            text_content = target_content.get_text(strip=False)
+            
+            # 8. Post-processing to clean up redundant whitespace
+
+            # A. Normalize all newline combinations to just \n
+            text_content = text_content.replace('\r\n', '\n').replace('\r', '\n')
+            
+            # B. Collapse multiple consecutive newlines into at most two (paragraph break)
+            text_content = re.sub(r'\n{3,}', '\n\n', text_content)
+
+            # C. Remove spaces/tabs immediately adjacent to newlines 
+            text_content = re.sub(r'[ \t]+\n', '\n', text_content)
+            text_content = re.sub(r'\n[ \t]+', '\n', text_content)
+            
+            # D. Strip leading/trailing whitespace from the entire result
+            return text_content.strip()
+
+        except Exception as e:
+            # Simple error handling
+            return f"An error occurred during parsing: {e}"
     async def _verify_token_and_get_user_id(self, token: str) -> str:
         """
         Verify the token and return the associated user_id.
