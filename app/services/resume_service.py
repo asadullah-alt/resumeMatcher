@@ -127,7 +127,7 @@ class ResumeService:
         # Check for user by token in different fields
         user = await self.db.users.find_one({
             "$or": [
-                {"token": token},
+                {"local.token": token},
                 {"google.token": token},
                 {"linkedin.token": token}
             ]

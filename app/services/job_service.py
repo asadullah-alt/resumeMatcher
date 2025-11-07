@@ -125,7 +125,7 @@ class JobService:
             "$or": [
                 {"google.token": token},
                 {"linkedin.token": token},
-                {"token": token}
+                {"local.token": token}
             ]
         })
         
@@ -180,42 +180,44 @@ class JobService:
             job_id=job_id,
             user_id=user_id,
             job_title=structured_job.get("job_title"),
-            company_profile=json.dumps(structured_job.get("company_profile"))
-            if structured_job.get("company_profile")
-            else None,
-            location=json.dumps(structured_job.get("location"))
-            if structured_job.get("location")
-            else None,
+            company_profile=structured_job.get("company_profile"),
+            location=structured_job.get("location"),
             date_posted=structured_job.get("date_posted"),
             employment_type=structured_job.get("employment_type"),
             job_summary=structured_job.get("job_summary"),
-            key_responsibilities=json.dumps(
-                {"key_responsibilities": structured_job.get("key_responsibilities", [])}
-            )
-            if structured_job.get("key_responsibilities")
-            else None,
-            qualifications=json.dumps(structured_job.get("qualifications", []))
-            if structured_job.get("qualifications")
-            else None,
-            compensation_and_benfits=json.dumps(
-                structured_job.get("compensation_and_benfits", [])
-            )
-            if structured_job.get("compensation_and_benfits")
-            else None,
-            application_info=json.dumps(structured_job.get("application_info", []))
-            if structured_job.get("application_info")
-            else None,
-            extracted_keywords=json.dumps(
-                {"extracted_keywords": structured_job.get("extracted_keywords", [])}
-            )
-            if structured_job.get("extracted_keywords")
-            else None,
+            key_responsibilities=structured_job.get("key_responsibilities"),
+            qualifications=structured_job.get("qualifications"),
+            compensation_and_benfits=structured_job.get("compensation_and_benfits"),
+            application_info=structured_job.get("application_info"),
+            extracted_keywords=structured_job.get("extracted_keywords")
         )
 
         await processed_job.insert()
 
         return job_id
+    def fix_nested_json_strings(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Recursively parses any string values that look like JSON."""
+        
+        # List of keys that were flagged in the error detail
+        keys_to_fix = [
+            'location', 
+            'key_responsibilities', 
+            'qualifications', 
+            'application_info', 
+            'extracted_keywords'
+        ]
 
+        fixed_data = data.copy()
+        for key in keys_to_fix:
+            if key in fixed_data and isinstance(fixed_data[key], str):
+                try:
+                    # Attempt to parse the string value into a proper Python object
+                    fixed_data[key] = json.loads(fixed_data[key])
+                except json.JSONDecodeError:
+                    # Handle cases where the string isn't valid JSON (optional, but safe)
+                    print(f"Warning: Could not decode JSON string for key: {key}")
+
+        return fixed_data
     async def _extract_structured_json(
         self, job_description_text: str
     ) -> Dict[str, Any] | None:
@@ -229,8 +231,10 @@ class JobService:
             job_description_text,
         )
         logger.info(f"Structured Job Prompt: {prompt}")
-        raw_output = await self.json_agent_manager.run(prompt=prompt)
-
+        raw_output_v1 = await self.json_agent_manager.run(prompt=prompt)
+        logging.info(f"Structured Job Raw Output (String Type Check): {type(raw_output_v1)}")
+        raw_output = self.fix_nested_json_strings(raw_output_v1)
+        logger.info(f"Structured Job Raw Output: {raw_output}")
         try:
             structured_job: StructuredJobModel = StructuredJobModel.model_validate(
                 raw_output
@@ -285,7 +289,7 @@ class JobService:
         if processed_job:
             combined_data["processed_job"] = {
                 "job_title": processed_job.job_title,
-                "company_profile": json.loads(processed_job.company_profile) if processed_job.company_profile else None,
+                "company_profile": processed_job.company_profile.model_dump() if processed_job.company_profile else None,
                 "location": json.loads(processed_job.location) if processed_job.location else None,
                 "date_posted": processed_job.date_posted,
                 "employment_type": processed_job.employment_type,
