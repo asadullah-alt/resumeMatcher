@@ -146,11 +146,12 @@ class JobService:
         token = str(job_data.get("token"))
         user_id = await self._verify_token_and_get_user_id(token)
         job_description_raw = job_data.get("job_descriptions")
+        job_url = job_data.get("job_url")
         job_description = self.clean_html_body(job_description_raw)
         job_id = str(uuid.uuid4())
-        job = Job(job_id=job_id,user_id=user_id,content=job_description)
+        job = Job(job_id=job_id,user_id=user_id,content=job_description,job_url=job_url)
         await job.insert()
-        await self._extract_and_store_structured_job(job_id=job_id,user_id=user_id,job_description_text=job_description)
+        await self._extract_and_store_structured_job(job_id=job_id,user_id=user_id,job_description_text=job_description,job_url=job_url)
         return job_id
 
     async def _is_resume_available(self, resume_id: str) -> bool:
@@ -161,7 +162,7 @@ class JobService:
         return resume is not None
 
     async def _extract_and_store_structured_job(
-        self, job_id: str, user_id: str, job_description_text: str
+        self, job_id: str, user_id: str, job_description_text: str, job_url: str = None
     ):
         """
         Extract and store structured job data in the database
@@ -177,6 +178,7 @@ class JobService:
             return None
 
         processed_job = ProcessedJob(
+            job_url=job_url,
             job_id=job_id,
             user_id=user_id,
             job_title=structured_job.get("job_title"),
@@ -278,8 +280,7 @@ class JobService:
         combined_data = {
             "job_id": job.job_id,
             "raw_job": {
-                "id": job.id,
-                "resume_id": job.resume_id,
+                "id": str(job.id),
                 "content": job.content,
                 "created_at": job.created_at.isoformat() if job.created_at else None,
             },
@@ -288,18 +289,18 @@ class JobService:
 
         if processed_job:
             combined_data["processed_job"] = {
-                "job_title": processed_job.job_title,
+                "jobPosition": processed_job.job_title,
                 "company_profile": processed_job.company_profile.model_dump() if processed_job.company_profile else None,
-                "location": json.loads(processed_job.location) if processed_job.location else None,
+                "location": processed_job.location.model_dump(),
                 "date_posted": processed_job.date_posted,
                 "employment_type": processed_job.employment_type,
                 "job_summary": processed_job.job_summary,
-                "key_responsibilities": json.loads(processed_job.key_responsibilities).get("key_responsibilities", []) if processed_job.key_responsibilities else None,
-                "qualifications": json.loads(processed_job.qualifications).get("qualifications", []) if processed_job.qualifications else None,
-                "compensation_and_benfits": json.loads(processed_job.compensation_and_benfits).get("compensation_and_benfits", []) if processed_job.compensation_and_benfits else None,
-                "application_info": json.loads(processed_job.application_info).get("application_info", []) if processed_job.application_info else None,
-                "extracted_keywords": json.loads(processed_job.extracted_keywords).get("extracted_keywords", []) if processed_job.extracted_keywords else None,
+                "key_responsibilities": processed_job.key_responsibilities,
+                "qualifications": processed_job.qualifications.model_dump(),
+                "compensation_and_benefits": processed_job.compensation_and_benefits,
+                "application_info": processed_job.application_info.model_dump(),
+                "extracted_keywords": processed_job.extracted_keywords,
                 "processed_at": processed_job.processed_at.isoformat() if processed_job.processed_at else None,
             }
-
+        print(combined_data)
         return combined_data

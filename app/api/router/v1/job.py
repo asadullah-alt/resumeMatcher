@@ -79,6 +79,7 @@ async def get_job(
     request: Request,
     job_id: str = Query(..., description="Job ID to fetch data for"),
     db: Any = Depends(get_db_session),
+    token: str = Query(..., description ="Token for authentication")
 ):
     """
     Retrieves job data from both job_model and processed_job model by job_id.
@@ -104,7 +105,8 @@ async def get_job(
 
         job_service = JobService(db)
         job_data = await job_service.get_job_with_processed_data(
-            job_id=job_id
+            job_id=job_id,
+            token=token
         )
         
         if not job_data:

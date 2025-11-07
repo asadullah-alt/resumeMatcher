@@ -115,6 +115,7 @@ class ApplicationInfo(BaseModel):
 
 class ProcessedJob(Document):
     """Main document for storing processed job postings."""
+    job_url: str
     user_id: str
     job_id: str
     job_title: Optional[str] = Field(None, alias="jobTitle")
@@ -152,6 +153,7 @@ class ProcessedJob(Document):
         str_strip_whitespace = True
 
 class Job(Document):
+    job_url: str
     user_id: str
     job_id: str
     content: str

@@ -5,5 +5,5 @@ from pydantic import BaseModel, Field
 
 class JobUploadRequest(BaseModel):
     job_descriptions: str
-    url: str
+    job_url: str
     token: str
