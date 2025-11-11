@@ -15,6 +15,7 @@ from app.schemas.json import json_schema_factory
 from app.schemas.pydantic import ResumePreviewerModel, ResumeAnalysisModel
 from app.agent import EmbeddingManager, AgentManager
 from app.models import Resume, Job, ProcessedResume, ProcessedJob, Improvement
+from fastapi.encoders import jsonable_encoder
 from .exceptions import (
     ResumeNotFoundError,
     JobNotFoundError,
@@ -441,7 +442,10 @@ class ScoreImprovementService:
                 logger.info(
                     f"Returning cached improvement for resume_id={resume_id}, job_id={job_id}"
                 )
-                return existing_improvement.model_dump()
+                # Beanie Document contains PydanticObjectId and datetimes which are
+                # not JSON serializable by the stdlib json module. Use FastAPI's
+                # jsonable_encoder to convert them to serializable types (str/ISO).
+                return jsonable_encoder(existing_improvement.model_dump())
 
         resume, processed_resume = await self._get_resume(resume_id)
         job, processed_job = await self._get_job(job_id)
@@ -564,7 +568,8 @@ class ScoreImprovementService:
                 logger.info(
                     f"Returning cached improvement for resume_id={resume_id}, job_id={job_id}"
                 )
-                final_result = existing_improvement.model_dump()
+                # Ensure the cached improvement is JSON serializable for streaming
+                final_result = jsonable_encoder(existing_improvement.model_dump())
                 yield f"data: {json.dumps({'status': 'completed', 'result': final_result})}\n\n"
                 return
 
