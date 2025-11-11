@@ -4,6 +4,7 @@ import traceback
 from uuid import uuid4
 from typing import Any
 from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.encoders import jsonable_encoder
 from fastapi import (
     APIRouter,
     File,
@@ -182,10 +183,13 @@ async def score_and_improve(
                 job_id=job_id,
                 analyze_again=analysis_again,
             )
+            # Ensure any non-JSON-serializable types (e.g. PydanticObjectId, datetimes)
+            # are converted to JSON-friendly types before building the response.
+            safe_data = jsonable_encoder(improvements)
             return JSONResponse(
                 content={
                     "request_id": request_id,
-                    "data": improvements,
+                    "data": safe_data,
                 },
                 headers=headers,
             )
@@ -274,10 +278,12 @@ async def get_resume(
                 message=f"Resume with id {resume_id} not found"
             )
 
+        # Convert any non-serializable types from DB documents before returning
+        safe_resume = jsonable_encoder(resume_data)
         return JSONResponse(
             content={
                 "request_id": request_id,
-                "data": resume_data,
+                "data": safe_resume,
             },
             headers=headers,
         )
@@ -321,10 +327,11 @@ async def get_all_user_resumes(
         resume_service = ResumeService(db)
         resume_ids = await resume_service.get_resume_ids_for_token(token=token)
 
+        safe_ids = jsonable_encoder(resume_ids)
         return JSONResponse(
             content={
                 "request_id": request_id,
-                "data": resume_ids,
+                "data": safe_ids,
             },
             headers=headers,
         )
