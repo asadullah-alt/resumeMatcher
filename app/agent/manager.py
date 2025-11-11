@@ -39,6 +39,12 @@ class AgentManager:
                 model = opts.get("model", self.model)
                 return OllamaProvider(model_name=model,
                                       opts=opts)
+            case 'genai':
+                from .providers.genai import GenAIProvider
+                api_key = opts.get("llm_api_key", settings.LLM_API_KEY)
+                return GenAIProvider(model_name=self.model,
+                                     api_key=api_key,
+                                     opts=opts)
             case _:
                 from .providers.llama_index import LlamaIndexProvider
                 llm_api_key = opts.get("llm_api_key", settings.LLM_API_KEY)
