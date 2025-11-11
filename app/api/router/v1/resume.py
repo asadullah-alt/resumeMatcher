@@ -344,3 +344,66 @@ async def get_all_user_resumes(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error fetching user resumes",
         )
+
+
+@resume_router.get(
+    "/getImprovements",
+    summary="Retrieve cached improvement analysis for a resume-job pair",
+)
+async def get_improvements(
+    request: Request,
+    resume_id: str = Query(..., description="Resume ID"),
+    job_id: str = Query(..., description="Job ID"),
+    db: Any = Depends(get_db_session),
+):
+    """
+    Retrieves a cached Improvement document for the given resume_id and job_id.
+    Returns the improvement analysis if it exists, or null if not found.
+
+    Args:
+        resume_id: The ID of the resume
+        job_id: The ID of the job
+
+    Returns:
+        Improvement document with all analysis data, or null if not found
+
+    Raises:
+        HTTPException: If resume_id or job_id is missing or if there's an error fetching data.
+    """
+    request_id = getattr(request.state, "request_id", str(uuid4()))
+    headers = {"X-Request-ID": request_id}
+
+    try:
+        if not resume_id or not job_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Both resume_id and job_id are required",
+            )
+
+        score_improvement_service = ScoreImprovementService(db=db)
+        improvement = await score_improvement_service._get_improvement(
+            resume_id=resume_id,
+            job_id=job_id,
+        )
+
+        # Convert the Beanie document to a dict and encode non-serializable types
+        improvement_data = None
+        if improvement:
+            improvement_data = jsonable_encoder(improvement.model_dump())
+
+        return JSONResponse(
+            content={
+                "request_id": request_id,
+                "data": improvement_data,
+            },
+            headers=headers,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching improvement: {str(e)} - traceback: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error fetching improvement data",
+        )
