@@ -1,6 +1,7 @@
 from .resume import ProcessedResume, Resume
 from .user import User
 from .job import ProcessedJob, Job
+from .improvement import Improvement
 
 __all__ = [
     "Resume",
@@ -8,4 +9,5 @@ __all__ = [
     "ProcessedJob",
     "User",
     "Job",
+    "Improvement",
 ]

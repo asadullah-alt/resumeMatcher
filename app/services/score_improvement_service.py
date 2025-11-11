@@ -6,6 +6,7 @@ import markdown
 import numpy as np
 import re
 
+from datetime import datetime
 from pydantic import ValidationError
 from typing import Dict, Optional, Tuple, AsyncGenerator, List
 
@@ -13,7 +14,7 @@ from app.prompt import prompt_factory
 from app.schemas.json import json_schema_factory
 from app.schemas.pydantic import ResumePreviewerModel, ResumeAnalysisModel
 from app.agent import EmbeddingManager, AgentManager
-from app.models import Resume, Job, ProcessedResume, ProcessedJob
+from app.models import Resume, Job, ProcessedResume, ProcessedJob, Improvement
 from .exceptions import (
     ResumeNotFoundError,
     JobNotFoundError,
@@ -181,8 +182,8 @@ class ScoreImprovementService:
             raise JobKeywordExtractionError(job_id=job_id)
 
         try:
-            keywords_data = json.loads(processed_job.extracted_keywords)
-            keywords = keywords_data.get("extracted_keywords", [])
+            keywords_data =processed_job.extracted_keywords
+            keywords = keywords_data
             if not keywords or len(keywords) == 0:
                 raise JobKeywordExtractionError(job_id=job_id)
         except json.JSONDecodeError:
@@ -227,6 +228,84 @@ class ScoreImprovementService:
         self._validate_job_keywords(processed_job, job_id)
 
         return job, processed_job
+
+    async def _save_improvement(
+        self,
+        resume_id: str,
+        job_id: str,
+        improvement_data: Dict,
+    ) -> Improvement:
+        """
+        Saves or updates an improvement document in the database.
+        """
+        existing_improvement = await Improvement.find_one(
+            (Improvement.resume_id == resume_id) , (Improvement.job_id == job_id)
+        )
+
+        if existing_improvement:
+            # Update existing improvement
+            existing_improvement.original_score = improvement_data["original_score"]
+            existing_improvement.new_score = improvement_data["new_score"]
+            existing_improvement.updated_resume = improvement_data["updated_resume"]
+            existing_improvement.resume_preview = improvement_data["resume_preview"]
+            existing_improvement.details = improvement_data["details"]
+            existing_improvement.commentary = improvement_data["commentary"]
+            existing_improvement.improvements = improvement_data["improvements"]
+            existing_improvement.original_resume_markdown = improvement_data[
+                "original_resume_markdown"
+            ]
+            existing_improvement.updated_resume_markdown = improvement_data[
+                "updated_resume_markdown"
+            ]
+            existing_improvement.job_description = improvement_data["job_description"]
+            existing_improvement.job_keywords = improvement_data["job_keywords"]
+            existing_improvement.skill_comparison = improvement_data["skill_comparison"]
+            existing_improvement.updated_at = datetime.utcnow()
+            await existing_improvement.save()
+            logger.info(
+                f"Updated improvement for resume_id={resume_id}, job_id={job_id}"
+            )
+            return existing_improvement
+        else:
+            # Create new improvement
+            new_improvement = Improvement(
+                resume_id=resume_id,
+                job_id=job_id,
+                original_score=improvement_data["original_score"],
+                new_score=improvement_data["new_score"],
+                updated_resume=improvement_data["updated_resume"],
+                resume_preview=improvement_data["resume_preview"],
+                details=improvement_data["details"],
+                commentary=improvement_data["commentary"],
+                improvements=improvement_data["improvements"],
+                original_resume_markdown=improvement_data["original_resume_markdown"],
+                updated_resume_markdown=improvement_data["updated_resume_markdown"],
+                job_description=improvement_data["job_description"],
+                job_keywords=improvement_data["job_keywords"],
+                skill_comparison=improvement_data["skill_comparison"],
+            )
+            await new_improvement.insert()
+            logger.info(
+                f"Created new improvement for resume_id={resume_id}, job_id={job_id}"
+            )
+            return new_improvement
+
+    async def _get_improvement(
+        self, resume_id: str, job_id: str
+    ) -> Improvement | None:
+        """
+        Retrieves an existing improvement from the database.
+        Returns None if no improvement exists for the given resume_id and job_id.
+        """
+        improvement = await Improvement.find_one(
+           (Improvement.resume_id == resume_id), 
+            (Improvement.job_id == job_id)
+        )
+        if improvement:
+            logger.info(
+                f"Retrieved existing improvement for resume_id={resume_id}, job_id={job_id}"
+            )
+        return improvement
 
     def calculate_cosine_similarity(
         self,
@@ -342,17 +421,33 @@ class ScoreImprovementService:
 
         return analysis.model_dump()
 
-    async def run(self, resume_id: str, job_id: str) -> Dict:
+    async def run(self, resume_id: str, job_id: str, analyze_again: bool = False) -> Dict:
         """
         Main method to run the scoring and improving process and return dict.
+        
+        Args:
+            resume_id: The ID of the resume to analyze
+            job_id: The ID of the job to analyze
+            analyze_again: If True, force re-analysis and update existing improvement.
+                          If False, check for existing improvement first and return it if found.
+        
+        Returns:
+            Dictionary containing the improvement analysis results
         """
+        # If analyze_again is False, try to retrieve existing improvement
+        if not analyze_again:
+            existing_improvement = await self._get_improvement(resume_id, job_id)
+            if existing_improvement:
+                logger.info(
+                    f"Returning cached improvement for resume_id={resume_id}, job_id={job_id}"
+                )
+                return existing_improvement.model_dump()
 
         resume, processed_resume = await self._get_resume(resume_id)
         job, processed_job = await self._get_job(job_id)
 
-        job_keywords_raw = json.loads(processed_job.extracted_keywords).get(
-            "extracted_keywords", []
-        )
+        job_keywords_raw = processed_job.extracted_keywords
+        
         resume_keywords_raw = json.loads(processed_resume.extracted_keywords).get(
             "extracted_keywords", []
         )
@@ -438,17 +533,40 @@ class ScoreImprovementService:
             "skill_comparison": skill_comparison,
         }
 
+        # Save the improvement to the database
+        await self._save_improvement(resume_id, job_id, execution)
+
         gc.collect()
 
         return execution
 
-    async def run_and_stream(self, resume_id: str, job_id: str) -> AsyncGenerator:
+    async def run_and_stream(self, resume_id: str, job_id: str, analyze_again: bool = False) -> AsyncGenerator:
         """
-        Main method to run the scoring and improving process and return dict.
+        Main method to run the scoring and improving process with streaming updates.
+        
+        Args:
+            resume_id: The ID of the resume to analyze
+            job_id: The ID of the job to analyze
+            analyze_again: If True, force re-analysis and update existing improvement.
+                          If False, check for existing improvement first and return it if found.
+        
+        Yields:
+            Server-sent event formatted strings with progress updates and final result
         """
 
         yield f"data: {json.dumps({'status': 'starting', 'message': 'Analyzing resume and job description...'})}\n\n"
         await asyncio.sleep(2)
+
+        # If analyze_again is False, try to retrieve existing improvement
+        if not analyze_again:
+            existing_improvement = await self._get_improvement(resume_id, job_id)
+            if existing_improvement:
+                logger.info(
+                    f"Returning cached improvement for resume_id={resume_id}, job_id={job_id}"
+                )
+                final_result = existing_improvement.model_dump()
+                yield f"data: {json.dumps({'status': 'completed', 'result': final_result})}\n\n"
+                return
 
         resume, processed_resume = await self._get_resume(resume_id)
         job, processed_job = await self._get_job(job_id)
@@ -556,5 +674,8 @@ class ScoreImprovementService:
             "job_keywords": extracted_job_keywords,
             "skill_comparison": skill_comparison,
         }
+
+        # Save the improvement to the database
+        await self._save_improvement(resume_id, job_id, final_result)
 
         yield f"data: {json.dumps({'status': 'completed', 'result': final_result})}\n\n"

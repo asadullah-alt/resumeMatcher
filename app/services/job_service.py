@@ -191,9 +191,37 @@ class JobService:
             qualifications=structured_job.get("qualifications"),
             compensation_and_benfits=structured_job.get("compensation_and_benfits"),
             application_info=structured_job.get("application_info"),
-            extracted_keywords=structured_job.get("extracted_keywords")
         )
+        # Cleaning: ensure extracted_keywords is a list. Some LLM outputs wrap the
+        # keywords in a nested JSON string/object like:
+        # '{"extracted_keywords": ["Python", "..."]}'
+        # or a dict: {"extracted_keywords": [...]}. Handle those cases and
+        # extract the inner list before saving the ProcessedJob document.
+        extracted_kw = structured_job.get("extracted_keywords")
 
+        # If it's a JSON string, try to parse it
+        if isinstance(extracted_kw, str):
+            try:
+                parsed = json.loads(extracted_kw)
+                extracted_kw = parsed
+            except json.JSONDecodeError:
+                # leave as-is if not JSON
+                pass
+
+        # If it's a dict with an inner 'extracted_keywords' key, pull the list out
+        if isinstance(extracted_kw, dict):
+            # support both snake_case and camelCase keys
+            for key in ("extracted_keywords", "extractedKeywords"):
+                if key in extracted_kw and isinstance(extracted_kw[key], list):
+                    extracted_kw = extracted_kw[key]
+                    break
+
+        # Final sanity: only keep as list or None
+        if not isinstance(extracted_kw, list):
+            extracted_kw = None
+
+        # assign the cleaned keywords
+        processed_job.extracted_keywords = extracted_kw
         await processed_job.insert()
 
         return job_id
@@ -289,17 +317,18 @@ class JobService:
 
         if processed_job:
             combined_data["processed_job"] = {
+                "jobUrl":processed_job.job_url,
                 "jobPosition": processed_job.job_title,
-                "company_profile": processed_job.company_profile.model_dump() if processed_job.company_profile else None,
+                "companyProfile": processed_job.company_profile.model_dump() if processed_job.company_profile else None,
                 "location": processed_job.location.model_dump(),
                 "date_posted": processed_job.date_posted,
                 "employment_type": processed_job.employment_type,
-                "job_summary": processed_job.job_summary,
-                "key_responsibilities": processed_job.key_responsibilities,
+                "jobSummary": processed_job.job_summary,
+                "keyResponsibilities": processed_job.key_responsibilities,
                 "qualifications": processed_job.qualifications.model_dump(),
-                "compensation_and_benefits": processed_job.compensation_and_benefits,
-                "application_info": processed_job.application_info.model_dump(),
-                "extracted_keywords": processed_job.extracted_keywords,
+                "compensationAndBenefits": processed_job.compensation_and_benefits,
+                "applicationInfo": processed_job.application_info.model_dump(),
+                "extractedKeywords": processed_job.extracted_keywords,
                 "processed_at": processed_job.processed_at.isoformat() if processed_job.processed_at else None,
             }
         print(combined_data)

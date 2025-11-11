@@ -163,11 +163,15 @@ async def score_and_improve(
             )
         score_improvement_service = ScoreImprovementService(db=db)
 
+        # Read whether the client requested re-analysis or to use cached result
+        analysis_again = bool(request_payload.get("analysis_again", False))
+
         if stream:
             return StreamingResponse(
                 content=score_improvement_service.run_and_stream(
                     resume_id=resume_id,
                     job_id=job_id,
+                    analyze_again=analysis_again,
                 ),
                 media_type="text/event-stream",
                 headers=headers,
@@ -176,6 +180,7 @@ async def score_and_improve(
             improvements = await score_improvement_service.run(
                 resume_id=resume_id,
                 job_id=job_id,
+                analyze_again=analysis_again,
             )
             return JSONResponse(
                 content={

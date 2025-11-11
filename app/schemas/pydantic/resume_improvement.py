@@ -5,3 +5,6 @@ from pydantic import BaseModel, Field
 class ResumeImprovementRequest(BaseModel):
     job_id: UUID = Field(..., description="DB UUID reference to the job")
     resume_id: UUID = Field(..., description="DB UUID reference to the resume")
+    analysis_again: bool = Field(
+        False, description="Optional DB UUID reference to a prior analysis"
+)

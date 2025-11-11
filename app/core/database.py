@@ -12,6 +12,7 @@ from ..models import (
     Job,
     ProcessedJob,
     User,
+    Improvement,
 )
 
 
@@ -27,7 +28,7 @@ async def init_db(app=None) -> None:
     _motor_db = _motor_client[settings.MONGO_DB_NAME]
 
     # Initialize Beanie with all document models
-    await init_beanie(database=_motor_db, document_models=[Resume, ProcessedResume, Job, ProcessedJob, User])
+    await init_beanie(database=_motor_db, document_models=[Resume, ProcessedResume, Job, ProcessedJob, User, Improvement])
 
 
 async def close_db() -> None:
