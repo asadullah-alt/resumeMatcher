@@ -1,23 +1,20 @@
 import os
 import logging
-
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from typing import Any, Dict
 from fastapi.concurrency import run_in_threadpool
-
 from ..exceptions import ProviderError
 from .base import Provider
 from ...core import settings
 
 logger = logging.getLogger(__name__)
 
-
 class GenAIProvider(Provider):
     """
     Provider for Google Generative AI (Gemini).
     Note: GenAI is used for LLM generation only, not for embeddings.
     """
-
     def __init__(
         self,
         api_key: str | None = None,
@@ -30,15 +27,14 @@ class GenAIProvider(Provider):
         if not api_key:
             raise ProviderError("Google Generative AI API key is missing")
         
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel(model_name)
+        self.client = genai.Client(api_key=api_key)
         self.model_name = model_name
         self.opts = opts
-
+    
     def _generate_sync(self, prompt: str, options: Dict[str, Any]) -> str:
         try:
             # Extract generation config parameters
-            generation_config = {}
+            config_params = {}
             allowed_keys = {
                 "temperature",
                 "top_p",
@@ -48,28 +44,24 @@ class GenAIProvider(Provider):
             }
             
             for key in allowed_keys:
-                value = self.opts.get(key)
+                value = options.get(key)
                 if value is not None:
-                    generation_config[key] = value
+                    config_params[key] = value
             
-            # Update with any runtime options
-            for key in allowed_keys:
-                if key in options and options[key] is not None:
-                    generation_config[key] = options[key]
+            # Create generation config if we have parameters
+            generation_config = types.GenerateContentConfig(**config_params) if config_params else None
             
-            # Generate response
-            if generation_config:
-                response = self.model.generate_content(
-                    prompt,
-                    generation_config=genai.types.GenerationConfig(**generation_config),
-                )
-            else:
-                response = self.model.generate_content(prompt)
+            # Generate response using the models.generate_content method
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                config=generation_config
+            )
             
             return response.text
         except Exception as e:
             raise ProviderError(f"Google Generative AI - error generating response: {e}") from e
-
+    
     async def __call__(self, prompt: str, **generation_args: Any) -> str:
         if generation_args:
             logger.warning(f"GenAIProvider - generation_args will be used: {generation_args}")
@@ -81,6 +73,8 @@ class GenAIProvider(Provider):
             "max_output_tokens",
             "candidate_count",
         }
+        
+        # Merge opts and generation_args
         myopts = {}
         for key in allowed:
             value = self.opts.get(key)
