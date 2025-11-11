@@ -328,3 +328,28 @@ class ResumeService:
             }
 
         return combined_data
+
+    async def get_resume_ids_for_token(self, token: str) -> list[str]:
+        """
+        Returns a list of resume_id strings for the user identified by the given token.
+
+        If the user is not found for the token, returns an empty list.
+        """
+        # Find user by token in the same fields used during storage
+        user = await self.db.users.find_one({
+            "$or": [
+                {"local.token": token},
+                {"google.token": token},
+                {"linkedin.token": token},
+            ]
+        })
+
+        if not user:
+            logger.info(f"No user found for token when fetching resumes: {token}")
+            return []
+
+        user_id = str(user.get("_id"))
+
+        # Query Resume documents for this user_id
+        resumes = await Resume.find(Resume.user_id == user_id).to_list()
+        return [r.resume_id for r in resumes]

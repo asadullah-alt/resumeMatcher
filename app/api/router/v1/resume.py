@@ -294,3 +294,46 @@ async def get_resume(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error fetching resume data",
         )
+
+
+@resume_router.get(
+    "/getAllUserResumes",
+    summary="Get all resume IDs for a user by token",
+)
+async def get_all_user_resumes(
+    request: Request,
+    token: str = Query(..., description="User token to fetch resumes for"),
+    db: Any = Depends(get_db_session),
+):
+    """
+    Returns a list of resume_id strings for the user identified by the provided token.
+    """
+    request_id = getattr(request.state, "request_id", str(uuid4()))
+    headers = {"X-Request-ID": request_id}
+
+    try:
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="token is required",
+            )
+
+        resume_service = ResumeService(db)
+        resume_ids = await resume_service.get_resume_ids_for_token(token=token)
+
+        return JSONResponse(
+            content={
+                "request_id": request_id,
+                "data": resume_ids,
+            },
+            headers=headers,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching resumes for token: {str(e)} - traceback: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error fetching user resumes",
+        )
