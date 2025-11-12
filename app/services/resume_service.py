@@ -329,7 +329,7 @@ class ResumeService:
 
         return combined_data
 
-    async def get_resume_ids_for_token(self, token: str) -> list[str]:
+    async def get_resume_ids_for_token(self, token: str) -> list[dict[str, str]]:
         """
         Returns a list of resume_id strings for the user identified by the given token.
 
@@ -352,4 +352,4 @@ class ResumeService:
 
         # Query Resume documents for this user_id
         resumes = await Resume.find(Resume.user_id == user_id).to_list()
-        return [r.resume_id for r in resumes]
+        return [{"id": r.resume_id, "resume_name": r.resume_name} for r in resumes]

@@ -36,6 +36,7 @@ class User(Document):
     google: Optional[GoogleAuth] = None
     linkedin: Optional[LinkedInAuth] = None
     extension_token: Optional[str] = None
+    active_resume: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     async def generate_hash(self, password: str) -> str:

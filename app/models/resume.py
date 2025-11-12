@@ -28,6 +28,7 @@ class ProcessedResume(Document):
 class Resume(Document):
     user_id: str
     resume_id: str
+    resume_name: str
     content: str
     content_type: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
