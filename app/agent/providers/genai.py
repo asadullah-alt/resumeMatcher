@@ -50,7 +50,8 @@ class GenAIProvider(Provider):
             
             # Create generation config if we have parameters
             generation_config = types.GenerateContentConfig(**config_params) if config_params else None
-            
+            logger.info(f"Model {self.model_name}")
+            logger.info(f"Generation config: {generation_config}")
             # Generate response using the models.generate_content method
             response = self.client.models.generate_content(
                 model=self.model_name,

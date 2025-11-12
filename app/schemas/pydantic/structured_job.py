@@ -63,7 +63,7 @@ class RemoteStatusEnum(str, enum.Enum):
 
 
 class CompanyProfile(BaseModel):
-    company_name: str = Field(..., alias="companyName")
+    companyName: str = Field(..., alias="companyName")
     industry: Optional[str] = None
     website: Optional[str] = None
     description: Optional[str] = None

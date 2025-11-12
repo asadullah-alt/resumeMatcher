@@ -455,7 +455,8 @@ class ScoreImprovementService:
         resume_keywords_raw = json.loads(processed_resume.extracted_keywords).get(
             "extracted_keywords", []
         )
-
+        logger.info(f"EXTRACTED JOB KEYWORDS: {job_keywords_raw}")
+        logger.info(f"EXTRACTED RESUME KEYWORDS: {resume_keywords_raw}")            
         job_keywords_list = self._normalize_keyword_list(job_keywords_raw)
         resume_keywords_list = self._normalize_keyword_list(resume_keywords_raw)
 
@@ -487,6 +488,7 @@ class ScoreImprovementService:
         cosine_similarity_score = self.calculate_cosine_similarity(
             extracted_job_keywords_embedding, resume_embedding
         )
+        logger.info(f"Getting Ready for IMPROVE SCORE WITH LLM")
         updated_resume, updated_score = await self.improve_score_with_llm(
             resume=resume.content,
             extracted_resume_keywords=extracted_resume_keywords,

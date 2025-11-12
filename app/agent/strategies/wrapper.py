@@ -80,7 +80,7 @@ class MDWrapper(Strategy):
         """
         Wrapper strategy to format the prompt as Markdown with the help of LLM.
         """
-        logger.info(f"prompt given to provider: \n{prompt}")
+       
         response = await provider(prompt, **generation_args)
         logger.info(f"provider response: {response}")
         try:
