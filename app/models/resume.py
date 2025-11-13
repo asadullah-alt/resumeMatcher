@@ -13,8 +13,8 @@ class Location(BaseModel):
 
 
 class PersonalData(BaseModel):
-    firstName: str = Field(..., alias="firstName")
-    lastName: Optional[str] = Field(None, alias="lastName")
+    first_name: str = Field(..., alias="first_name")
+    last_name: Optional[str] = Field(None, alias="last_name")
     email: Optional[str] = None
     phone: Optional[str] = None
     linkedin: Optional[str] = None
@@ -23,27 +23,27 @@ class PersonalData(BaseModel):
 
 
 class Experience(BaseModel):
-    job_title: str = Field(..., alias="jobTitle")
+    job_title: str = Field(..., alias="job_title")
     company: Optional[str] = None
     location: Optional[str] = None
-    start_date: str = Field(..., alias="startDate")
-    end_date: str = Field(..., alias="endDate")
-    description: List[str] = Field(default_factory=list)
-    technologies_used: Optional[List[str]] = Field(default_factory=list, alias="technologiesUsed")
+    start_date: str = Field(..., alias="start_date")
+    end_date: Optional[str] = Field(..., alias="end_date")
+    description: Optional[List[str]] = Field(default_factory=list)
+    technologies_used: Optional[List[str]] = Field(default_factory=list, alias="technologies_used")
 
 
 class Project(BaseModel):
-    project_name: str = Field(..., alias="projectName")
+    project_name: str = Field(..., alias="project_name")
     description: Optional[str] = None
-    technologies_used: List[str] = Field(default_factory=list, alias="technologiesUsed")
+    technologies_used: List[str] = Field(default_factory=list, alias="technologies_used")
     link: Optional[str] = None
-    start_date: Optional[str] = Field(None, alias="startDate")
-    end_date: Optional[str] = Field(None, alias="endDate")
+    start_date: Optional[str] = Field(None, alias="start_date")
+    end_date: Optional[str] = Field(None, alias="end_date")
 
 
 class Skill(BaseModel):
     category: Optional[str] = None
-    skill_name: str = Field(..., alias="skillName")
+    skill_name: str = Field(..., alias="skill_name")
 
 
 class ResearchWork(BaseModel):
@@ -57,9 +57,9 @@ class ResearchWork(BaseModel):
 class Education(BaseModel):
     institution: Optional[str] = None
     degree: Optional[str] = None
-    field_of_study: Optional[str] = Field(None, alias="fieldOfStudy")
-    start_date: Optional[str] = Field(None, alias="startDate")
-    end_date: Optional[str] = Field(None, alias="endDate")
+    field_of_study: Optional[str] = Field(None, alias="field_of_study")
+    start_date: Optional[str] = Field(None, alias="start_date")
+    end_date: Optional[str] = Field(None, alias="end_date")
     grade: Optional[str] = None
     description: Optional[str] = None
 
