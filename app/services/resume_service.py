@@ -96,10 +96,10 @@ class ResumeService:
                 else:
                     raise Exception(f"File conversion failed: {error_msg}") from e
             
-            resume_id = await self._store_resume_in_db(text_content, content_type,token)
+            resume_id,user_id = await self._store_resume_in_db(text_content, content_type,token)
 
             await self._extract_and_store_structured_resume(
-                resume_id=resume_id, resume_text=text_content,token=token
+                resume_id=resume_id, resume_text=text_content,token=token,user_id=user_id
             )
 
             return resume_id
@@ -146,10 +146,10 @@ class ResumeService:
         )
 
         await resume.insert()
-        return resume_id
+        return resume_id,user_id
 
     async def _extract_and_store_structured_resume(
-        self, resume_id, resume_text: str,token: str = None
+        self, resume_id, resume_text: str,token: str = None,user_id: str = None
     ) -> None:
         """
         extract and store structured resume data in the database
@@ -164,6 +164,7 @@ class ResumeService:
                 )
 
             processed_resume = ProcessedResume(
+                user_id=user_id,
                 resume_id=resume_id,
                 personal_data=json.dumps(structured_resume.get("personal_data", {}))
                 if structured_resume.get("personal_data")
