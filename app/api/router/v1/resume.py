@@ -107,12 +107,13 @@ async def upload_resume(
     try:
         resume_service = ResumeService(db)
         resume_id = await resume_service.convert_and_store_resume(
-            resume_name,resume_name
+           
             file_bytes=file_bytes,
             file_type=file.content_type,
             filename=file.filename,
             content_type="md",
             token=token,
+            resume_name=resume_name,
         )
     except ResumeValidationError as e:
         logger.warning(f"Resume validation failed: {str(e)}")
