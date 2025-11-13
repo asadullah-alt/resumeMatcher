@@ -63,9 +63,9 @@ class Education(BaseModel):
 
 class StructuredResumeModel(BaseModel):
     personal_data: PersonalData = Field(..., alias="Personal Data")
-    experiences: List[Experience] = Field(..., alias="Experiences")
-    projects: List[Project] = Field(..., alias="Projects")
-    skills: List[Skill] = Field(..., alias="Skills")
+    experiences: List[Experience] = Field(default_factory=list, alias="Experiences")
+    projects: List[Project] = Field(default_factory=list, alias="Projects")
+    skills: List[Skill] = Field(default_factory=list, alias="Skills")
     research_work: List[ResearchWork] = Field(
         default_factory=list, alias="Research Work"
     )

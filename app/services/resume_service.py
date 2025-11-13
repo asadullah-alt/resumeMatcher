@@ -166,7 +166,7 @@ class ResumeService:
 
             processed_resume = ProcessedResume(
                 resume_name=resume_name,
-                user_id=user_id,
+                user_id=str(user_id) if user_id else None,
                 resume_id=resume_id,
                 personal_data=json.dumps(structured_resume.get("personal_data", {}))
                 if structured_resume.get("personal_data")
