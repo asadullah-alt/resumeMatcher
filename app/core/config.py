@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     LLM_BASE_URL: Optional[str] = "http://localhost:11434"
     #LL_MODEL: Optional[str] = "codellama:13b"
     #LL_MODEL: Optional[str] = "gemini-2.5-flash"
-    LL_MODEL: Optional[str] = "gemm3:4b"
+    LL_MODEL: Optional[str] = "gemma3:4b"
     EMBEDDING_PROVIDER: Optional[str] = "ollama"
     EMBEDDING_API_KEY: Optional[str] = None
     EMBEDDING_BASE_URL: Optional[str] = None
