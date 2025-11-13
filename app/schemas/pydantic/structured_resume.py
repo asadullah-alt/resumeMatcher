@@ -8,39 +8,39 @@ class Location(BaseModel):
 
 
 class PersonalData(BaseModel):
-    first_name: str = Field(..., alias="firstName")
-    last_name: Optional[str] = Field(..., alias="lastName")
+    first_name: str = Field(..., alias="first_name")
+    last_name: Optional[str] = Field(..., alias="last_name")
     email: Optional[str] = None
     phone: Optional[str] = None
     linkedin: Optional[str] = None
     portfolio: Optional[str] = None
-    location: Location
+    location: Optional[Location] = None
 
 
 class Experience(BaseModel):
-    job_title: str = Field(..., alias="jobTitle")
+    job_title: str = Field(..., alias="job_title")
     company: Optional[str] = None
     location: Optional[str] = None
-    start_date: str = Field(..., alias="startDate")
-    end_date: str = Field(..., alias="endDate")
-    description: List[str]
+    start_date: str = Field(..., alias="start_date")
+    end_date: Optional[str] = Field(..., alias="end_date")
+    description: Optional[List[str]] = Field(default_factory=list, alias="description")
     technologies_used: Optional[List[str]] = Field(
-        default_factory=list, alias="technologiesUsed"
+        default_factory=list, alias="technologies_used"
     )
 
 
 class Project(BaseModel):
     project_name: str = Field(..., alias="projectName")
     description: Optional[str] = None
-    technologies_used: List[str] = Field(..., alias="technologiesUsed")
+    technologies_used: List[str] = Field(..., alias="technologies_used")
     link: Optional[str] = None
-    start_date: Optional[str] = Field(None, alias="startDate")
-    end_date: Optional[str] = Field(None, alias="endDate")
+    start_date: Optional[str] = Field(None, alias="start_date")
+    end_date: Optional[str] = Field(None, alias="end_date")
 
 
 class Skill(BaseModel):
     category: Optional[str] = None
-    skill_name: str = Field(..., alias="skillName")
+    skill_name: str = Field(..., alias="skill_name")
 
 
 class ResearchWork(BaseModel):
@@ -54,25 +54,25 @@ class ResearchWork(BaseModel):
 class Education(BaseModel):
     institution: Optional[str] = None
     degree: Optional[str] = None
-    field_of_study: Optional[str] = Field(None, alias="fieldOfStudy")
-    start_date: Optional[str] = Field(None, alias="startDate")
-    end_date: Optional[str] = Field(None, alias="endDate")
+    field_of_study: Optional[str] = Field(None, alias="field_of_study")
+    start_date: Optional[str] = Field(None, alias="start_date")
+    end_date: Optional[str] = Field(None, alias="end_date")
     grade: Optional[str] = None
     description: Optional[str] = None
 
 
 class StructuredResumeModel(BaseModel):
-    personal_data: PersonalData = Field(..., alias="Personal Data")
-    experiences: List[Experience] = Field(default_factory=list, alias="Experiences")
-    projects: List[Project] = Field(default_factory=list, alias="Projects")
-    skills: List[Skill] = Field(default_factory=list, alias="Skills")
-    research_work: List[ResearchWork] = Field(
-        default_factory=list, alias="Research Work"
+    personal_data: PersonalData = Field(..., alias="personal_data")
+    experiences: List[Experience] = Field(default_factory=list, alias="experiences")
+    projects: Optional[List[Project]] = Field(default_factory=list, alias="projects")
+    skills: Optional[List[Skill]] = Field(default_factory=list, alias="skills")
+    research_work: Optional[List[ResearchWork]] = Field(
+        default_factory=list, alias="research_work"
     )
-    achievements: List[str] = Field(default_factory=list, alias="Achievements")
-    education: List[Education] = Field(default_factory=list, alias="Education")
+    achievements: Optional[List[str]] = Field(default_factory=list, alias="achievements")
+    education: List[Education] = Field(default_factory=list, alias="education")
     extracted_keywords: List[str] = Field(
-        default_factory=list, alias="Extracted Keywords"
+        default_factory=list, alias="extracted_keywords"
     )
 
     class ConfigDict:
