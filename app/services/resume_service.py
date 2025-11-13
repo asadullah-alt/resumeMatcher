@@ -54,7 +54,7 @@ class ResumeService:
 
 
     async def convert_and_store_resume(
-        self, file_bytes: bytes, file_type: str, filename: str, content_type: str = "md", token: str = None
+        self, file_bytes: bytes, file_type: str, filename: str, content_type: str = "md", token: str = None,resume_name: str = None
     ):
         """
         Converts resume file (PDF/DOCX) to text using MarkItDown and stores it in the database.
@@ -96,10 +96,10 @@ class ResumeService:
                 else:
                     raise Exception(f"File conversion failed: {error_msg}") from e
             
-            resume_id,user_id = await self._store_resume_in_db(text_content, content_type,token)
+            resume_id,user_id = await self._store_resume_in_db(text_content, content_type,token,resume_name)
 
             await self._extract_and_store_structured_resume(
-                resume_id=resume_id, resume_text=text_content,token=token,user_id=user_id
+                resume_id=resume_id, resume_text=text_content,token=token,user_id=user_id,resume_name=resume_name
             )
 
             return resume_id
@@ -118,7 +118,7 @@ class ResumeService:
             return ".docx"
         return ""
 
-    async def _store_resume_in_db(self, text_content: str, content_type: str, token: str) -> str:
+    async def _store_resume_in_db(self, text_content: str, content_type: str, token: str,resume_name: str) -> str:
         """
         Stores the parsed resume content in the database.
         """
@@ -139,6 +139,7 @@ class ResumeService:
         user_id = str(user['_id']) if user else None
         logger.info(f"Structured Resume userId: {user_id}")
         resume = Resume(
+            resume_name=resume_name,
             resume_id=resume_id,
             content=text_content,
             content_type=content_type,
@@ -149,7 +150,7 @@ class ResumeService:
         return resume_id,user_id
 
     async def _extract_and_store_structured_resume(
-        self, resume_id, resume_text: str,token: str = None,user_id: str = None
+        self, resume_id, resume_text: str,token: str = None,user_id: str = None,resume_name: str = None
     ) -> None:
         """
         extract and store structured resume data in the database
@@ -164,6 +165,7 @@ class ResumeService:
                 )
 
             processed_resume = ProcessedResume(
+                resume_name=resume_name,
                 user_id=user_id,
                 resume_id=resume_id,
                 personal_data=json.dumps(structured_resume.get("personal_data", {}))

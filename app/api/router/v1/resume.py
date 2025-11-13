@@ -50,6 +50,13 @@ async def upload_resume(
     Raises:
         HTTPException: If the file type is not supported, file is empty, or file exceeds 2MB limit.
     """
+    form_data = await request.form()
+    resume_name = form_data.get('name')
+    if resume_name is None or resume_name.strip() == "":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Resume name is required in the 'name' form field.",
+        )
     request_id = getattr(request.state, "request_id", str(uuid4()))
 
     allowed_content_types = [
@@ -100,6 +107,7 @@ async def upload_resume(
     try:
         resume_service = ResumeService(db)
         resume_id = await resume_service.convert_and_store_resume(
+            resume_name,resume_name
             file_bytes=file_bytes,
             file_type=file.content_type,
             filename=file.filename,
