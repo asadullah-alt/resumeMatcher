@@ -1,37 +1,37 @@
 SCHEMA = {
     "UUID": "string",
-    "Personal Data": {
-        "firstName": "string",
-        "lastName": "string",
+    "personal_data": {
+        "first_name": "string",
+        "last_name": "string",
         "email": "string",
         "phone": "string",
         "linkedin": "string",
         "portfolio": "string",
         "location": {"city": "string", "country": "string"},
     },
-    "Experiences": [
+    "experiences": [
         {
-            "jobTitle": "string",
+            "job_title": "string",
             "company": "string",
             "location": "string",
-            "startDate": "YYYY-MM-DD",
-            "endDate": "YYYY-MM-DD or Present",
+            "start_date": "YYYY-MM-DD",
+            "end_date": "YYYY-MM-DD or Present",
             "description": ["string", "..."],
             "technologiesUsed": ["string", "..."],
         }
     ],
-    "Projects": [
+    "projects": [
         {
-            "projectName": "string",
+            "project_name": "string",
             "description": "string",
-            "technologiesUsed": ["string", "..."],
+            "technologies_used": ["string", "..."],
             "link": "string",
-            "startDate": "YYYY-MM-DD",
-            "endDate": "YYYY-MM-DD",
+            "start_date": "YYYY-MM-DD",
+            "end_date": "YYYY-MM-DD",
         }
     ],
-    "Skills": [{"category": "string", "skillName": "string"}],
-    "Research Work": [
+    "skills": [{"category": "string", "skill_name": "string"}],
+    "research_work": [
         {
             "title": "string | null",
             "publication": "string | null",
@@ -40,17 +40,17 @@ SCHEMA = {
             "description": "string | null",
         }
     ],
-    "Achievements": ["string", "..."],
-    "Education": [
+    "achievements": ["string", "..."],
+    "education": [
         {
             "institution": "string",
             "degree": "string",
-            "fieldOfStudy": "string | null",
-            "startDate": "YYYY-MM-DD",
-            "endDate": "YYYY-MM-DD",
+            "field_of_study": "string | null",
+            "start_date": "YYYY-MM-DD",
+            "end_date": "YYYY-MM-DD",
             "grade": "string",
             "description": "string",
         }
     ],
-    "Extracted Keywords": ["string", "..."],
+    "extracted_keywords": ["string", "..."],
 }
