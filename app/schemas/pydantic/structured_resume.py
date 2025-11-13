@@ -8,8 +8,8 @@ class Location(BaseModel):
 
 
 class PersonalData(BaseModel):
-    firstName: str = Field(..., alias="firstName")
-    lastName: Optional[str] = Field(..., alias="lastName")
+    first_name: str = Field(..., alias="firstName")
+    last_name: Optional[str] = Field(..., alias="lastName")
     email: Optional[str] = None
     phone: Optional[str] = None
     linkedin: Optional[str] = None
