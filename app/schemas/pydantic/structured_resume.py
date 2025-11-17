@@ -30,7 +30,7 @@ class Experience(BaseModel):
 
 
 class Project(BaseModel):
-    project_name: str = Field(..., alias="projectName")
+    project_name: str = Field(..., alias="project_name")
     description: Optional[str] = None
     technologies_used: List[str] = Field(..., alias="technologies_used")
     link: Optional[str] = None
