@@ -75,13 +75,13 @@ class ProcessedResume(Document):
     resume_id: str
 
     personal_data: Optional[PersonalData] = None
-    experiences: List[Experience] = Field(default_factory=list)
-    projects: List[Project] = Field(default_factory=list)
-    skills: List[Skill] = Field(default_factory=list)
-    research_work: List[ResearchWork] = Field(default_factory=list)
-    achievements: List[str] = Field(default_factory=list)
-    education: List[Education] = Field(default_factory=list)
-    extracted_keywords: List[str] = Field(default_factory=list)
+    experiences: Optional[List[Experience]] = Field(default_factory=list)
+    projects: Optional[List[Project]] = Field(default_factory=list)
+    skills: Optional[List[Skill]] = Field(default_factory=list)
+    research_work: Optional[List[ResearchWork]] = Field(default_factory=list)
+    achievements: Optional[List[str]] = Field(default_factory=list)
+    education: Optional[List[Education]] = Field(default_factory=list)
+    extracted_keywords: Optional[List[str]] = Field(default_factory=list)
 
     processed_at: datetime = Field(default_factory=datetime.utcnow)
 
