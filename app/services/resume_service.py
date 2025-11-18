@@ -54,7 +54,7 @@ class ResumeService:
 
 
     async def convert_and_store_resume(
-        self, file_bytes: bytes, file_type: str, filename: str, content_type: str = "md", token: str = None,resume_name: str = None
+        self, file_bytes: bytes, file_type: str, filename: str, content_type: str = "md", token: Optional[str] = None, resume_name: Optional[str] = None
     ):
         """
         Converts resume file (PDF/DOCX) to text using MarkItDown and stores it in the database.
@@ -98,9 +98,13 @@ class ResumeService:
             
             resume_id,user_id = await self._store_resume_in_db(text_content, content_type,token,resume_name)
 
-            await self._extract_and_store_structured_resume(
+            saved = await self._extract_and_store_structured_resume(
                 resume_id=resume_id, resume_text=text_content,token=token,user_id=user_id,resume_name=resume_name
             )
+
+            # If structured resume was determined invalid, do not return the id; inform caller
+            if not saved:
+                return "Not a valid Resume"
 
             return resume_id
         finally:
@@ -118,7 +122,7 @@ class ResumeService:
             return ".docx"
         return ""
 
-    async def _store_resume_in_db(self, text_content: str, content_type: str, token: str,resume_name: str) -> str:
+    async def _store_resume_in_db(self, text_content: str, content_type: str, token: Optional[str], resume_name: Optional[str]) -> tuple[str, str | None]:
         """
         Stores the parsed resume content in the database.
         """
@@ -150,8 +154,8 @@ class ResumeService:
         return resume_id,user_id
 
     async def _extract_and_store_structured_resume(
-        self, resume_id, resume_text: str,token: str = None,user_id: str = None,resume_name: str = None
-    ) -> None:
+        self, resume_id, resume_text: str, token: Optional[str] = None, user_id: Optional[str] = None, resume_name: Optional[str] = None
+    ) -> bool:
         """
         extract and store structured resume data in the database
         """
@@ -164,32 +168,33 @@ class ResumeService:
                     message="Failed to extract structured data from resume. Please ensure your resume contains all required sections.",
                 )
 
+            # If both personal_data and experiences are missing/empty, treat as invalid
+            personal_data = structured_resume.get("personal_data")
+            experiences = structured_resume.get("experiences")
+
+            if (personal_data is None or personal_data == {}) and (
+                experiences is None or (isinstance(experiences, list) and len(experiences) == 0)
+            ):
+                logger.warning(f"Structured resume for resume_id={resume_id} missing personal_data and experiences; not saving processed resume.")
+                # Do not save ProcessedResume; indicate invalid resume to caller
+                return False
+
             processed_resume = ProcessedResume(
                 resume_name=resume_name,
                 user_id=str(user_id) if user_id else None,
                 resume_id=resume_id,
-                personal_data=structured_resume.get("personal_data")
-                ,
-                experiences= structured_resume.get("experiences")
-                ,
-                projects=structured_resume.get("projects" )
-                ,
-                skills=structured_resume.get("skills")
-               ,
-                research_work=structured_resume.get("research_work")
-               ,
-                achievements=structured_resume.get("achievements")
-                ,
-                education=structured_resume.get("education")
-                ,
-                extracted_keywords=structured_resume.get("extracted_keywords")
-                    
-                    if structured_resume.get("extracted_keywords")
-                    else None
-                )
-            
+                personal_data=structured_resume.get("personal_data"),
+                experiences=structured_resume.get("experiences") or [],
+                projects=structured_resume.get("projects") or [],
+                skills=structured_resume.get("skills") or [],
+                research_work=structured_resume.get("research_work") or [],
+                achievements=structured_resume.get("achievements") or [],
+                education=structured_resume.get("education") or [],
+                extracted_keywords=structured_resume.get("extracted_keywords") or [],
+            )
 
             await processed_resume.insert()
+            return True
         except ResumeValidationError:
             # Re-raise validation errors to propagate to the upload endpoint
             raise
@@ -202,7 +207,7 @@ class ResumeService:
 
     async def _extract_structured_json(
         self, resume_text: str
-    ) -> StructuredResumeModel | None:
+    ) -> dict | None:
         """
         Uses the AgentManager+JSONWrapper to ask the LLM to
         return the data in exact JSON schema we need.
