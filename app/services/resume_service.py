@@ -340,5 +340,5 @@ class ResumeService:
         user_id = str(user.get("_id"))
 
         # Query Resume documents for this user_id
-        resumes = await Resume.find(Resume.user_id == user_id).to_list()
+        resumes = await ProcessedResume.find(ProcessedResume.user_id == user_id).to_list()
         return [{"id": r.resume_id, "resume_name": r.resume_name} for r in resumes]
