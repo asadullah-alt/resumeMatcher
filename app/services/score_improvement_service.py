@@ -219,11 +219,7 @@ class ScoreImprovementService:
         """
         Fetches the resume from the database.
         """
-        # Fetch resume document
-        resume = await Resume.find_one(Resume.resume_id == resume_id)
-        if not resume:
-            raise ResumeNotFoundError(resume_id=resume_id)
-
+     
         # Fetch processed resume
         processed_resume = await ProcessedResume.find_one(
             ProcessedResume.resume_id == resume_id
