@@ -178,11 +178,15 @@ class ScoreImprovementService:
                         logger.warning(f"Failed to save extracted_keywords for resume_id={resume_id}: {e}")
 
         try:
-            keywords_data = json.loads(processed_resume.extracted_keywords)
-            keywords = keywords_data.get("extracted_keywords", [])
+            # extracted_keywords is now a list, not JSON string
+            if isinstance(processed_resume.extracted_keywords, str):
+                keywords_data = json.loads(processed_resume.extracted_keywords)
+                keywords = keywords_data.get("extracted_keywords", []) if isinstance(keywords_data, dict) else keywords_data
+            else:
+                keywords = processed_resume.extracted_keywords or []
             if not keywords or len(keywords) == 0:
                 raise ResumeKeywordExtractionError(resume_id=resume_id)
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, TypeError):
             raise ResumeKeywordExtractionError(resume_id=resume_id)
 
     def _validate_job_keywords(self, processed_job: ProcessedJob, job_id: str) -> None:
@@ -588,15 +592,12 @@ class ScoreImprovementService:
         resume, processed_resume = await self._get_resume(resume_id)
         job, processed_job = await self._get_job(job_id)
 
-        yield f"data: {json.dumps({'status': 'parsing', 'message': 'Parsing resume content...'})}\n\n"
+        yield f"data: {json.dumps({'status': 'parsing', 'message': 'Parsing resume content...'})}"
         await asyncio.sleep(2)
 
-        job_keywords_raw = json.loads(processed_job.extracted_keywords).get(
-            "extracted_keywords", []
-        )
-        resume_keywords_raw = json.loads(processed_resume.extracted_keywords).get(
-            "extracted_keywords", []
-        )
+        # extracted_keywords is now a list, not JSON string
+        job_keywords_raw = processed_job.extracted_keywords or []
+        resume_keywords_raw = processed_resume.extracted_keywords or []
 
         job_keywords_list = self._normalize_keyword_list(job_keywords_raw)
         resume_keywords_list = self._normalize_keyword_list(resume_keywords_raw)
