@@ -163,15 +163,38 @@ class ScoreImprovementService:
         Validates that keyword extraction was successful for a resume.
         Raises ResumeKeywordExtractionError if keywords are missing or empty.
         """
-        if not processed_resume.extracted_keywords:
+        # Support multiple storage formats for extracted_keywords:
+        # - list[str]
+        # - dict containing 'extracted_keywords'
+        # - JSON string of either list or dict
+        raw = processed_resume.extracted_keywords
+        if not raw:
             raise ResumeKeywordExtractionError(resume_id=resume_id)
 
-        try:
-            keywords_data = json.loads(processed_resume.extracted_keywords)
-            keywords = keywords_data.get("extracted_keywords", [])
-            if not keywords or len(keywords) == 0:
-                raise ResumeKeywordExtractionError(resume_id=resume_id)
-        except json.JSONDecodeError:
+        keywords = None
+        if isinstance(raw, list):
+            keywords = raw
+        elif isinstance(raw, dict):
+            # support both snake_case and camelCase
+            for key in ("extracted_keywords", "extractedKeywords"):
+                if key in raw and isinstance(raw[key], list):
+                    keywords = raw[key]
+                    break
+        elif isinstance(raw, str):
+            try:
+                parsed = json.loads(raw)
+                if isinstance(parsed, list):
+                    keywords = parsed
+                elif isinstance(parsed, dict):
+                    for key in ("extracted_keywords", "extractedKeywords"):
+                        if key in parsed and isinstance(parsed[key], list):
+                            keywords = parsed[key]
+                            break
+            except json.JSONDecodeError:
+                # try to fallback to simple comma-split
+                keywords = [k.strip() for k in raw.split(",") if k.strip()]
+
+        if not keywords or len(keywords) == 0:
             raise ResumeKeywordExtractionError(resume_id=resume_id)
 
     def _validate_job_keywords(self, processed_job: ProcessedJob, job_id: str) -> None:
@@ -183,11 +206,11 @@ class ScoreImprovementService:
             raise JobKeywordExtractionError(job_id=job_id)
 
         try:
-            keywords_data =processed_job.extracted_keywords
-            keywords = keywords_data
+            # processed_job.extracted_keywords is expected to be a list or None
+            keywords = processed_job.extracted_keywords
             if not keywords or len(keywords) == 0:
                 raise JobKeywordExtractionError(job_id=job_id)
-        except json.JSONDecodeError:
+        except Exception:
             raise JobKeywordExtractionError(job_id=job_id)
 
     async def _get_resume(
@@ -196,6 +219,12 @@ class ScoreImprovementService:
         """
         Fetches the resume from the database.
         """
+        # Fetch resume document
+        resume = await Resume.find_one(Resume.resume_id == resume_id)
+        if not resume:
+            raise ResumeNotFoundError(resume_id=resume_id)
+
+        # Fetch processed resume
         processed_resume = await ProcessedResume.find_one(
             ProcessedResume.resume_id == resume_id
         )
@@ -203,6 +232,76 @@ class ScoreImprovementService:
         if not processed_resume:
             raise ResumeParsingError(resume_id=resume_id)
 
+        # If extracted_keywords missing/empty, try to extract them from the raw resume
+        def _is_empty_kw(field):
+            if field is None:
+                return True
+            if isinstance(field, list) and len(field) == 0:
+                return True
+            if isinstance(field, dict):
+                # check nested keys
+                for key in ("extracted_keywords", "extractedKeywords"):
+                    if key in field and isinstance(field[key], list) and len(field[key]) > 0:
+                        return False
+                return True
+            if isinstance(field, str):
+                try:
+                    parsed = json.loads(field)
+                    if isinstance(parsed, list) and len(parsed) > 0:
+                        return False
+                    if isinstance(parsed, dict):
+                        for key in ("extracted_keywords", "extractedKeywords"):
+                            if key in parsed and isinstance(parsed[key], list) and len(parsed[key]) > 0:
+                                return False
+                    return True
+                except Exception:
+                    return len(field.strip()) == 0
+            return False
+
+        if _is_empty_kw(processed_resume.extracted_keywords):
+            logger.info(f"No extracted_keywords for resume_id={resume_id}; extracting via md agent")
+            # Use the raw resume content to extract keywords via the markdown agent
+            raw_text = resume.content if hasattr(resume, "content") else None
+            if raw_text:
+                prompt = (
+                    "Extract the most important skills and keywords from the resume text below. "
+                    "Return a JSON array of keywords (e.g. [\"python\", \"sql\"]). Respond with ONLY the JSON array and no additional text.\n\n"
+                    + raw_text
+                )
+                try:
+                    raw_output = await self.md_agent_manager.run(prompt)
+                except Exception as e:
+                    logger.warning(f"Keyword extraction agent failed: {e}")
+                    raw_output = None
+
+                extracted_list: List[str] = []
+                if raw_output:
+                    # Try to parse JSON array or dict first
+                    try:
+                        parsed = json.loads(raw_output)
+                        if isinstance(parsed, list):
+                            extracted_list = parsed
+                        elif isinstance(parsed, dict):
+                            for key in ("extracted_keywords", "extractedKeywords"):
+                                if key in parsed and isinstance(parsed[key], list):
+                                    extracted_list = parsed[key]
+                                    break
+                    except Exception:
+                        # Fallback: split on commas/newlines/semicolons
+                        parts = re.split(r"[\n,;]+", str(raw_output))
+                        extracted_list = [p.strip() for p in parts if p.strip()]
+
+                # Normalize and persist
+                normalized = self._normalize_keyword_list(extracted_list)
+                if normalized:
+                    processed_resume.extracted_keywords = normalized
+                    try:
+                        await processed_resume.save()
+                        logger.info(f"Saved extracted_keywords for resume_id={resume_id}: {normalized}")
+                    except Exception as e:
+                        logger.warning(f"Failed to save extracted keywords for resume_id={resume_id}: {e}")
+
+        # Validate now that extracted_keywords exists
         self._validate_resume_keywords(processed_resume, resume_id)
 
         return resume, processed_resume
@@ -302,6 +401,33 @@ class ScoreImprovementService:
                 f"Retrieved existing improvement for resume_id={resume_id}, job_id={job_id}"
             )
         return improvement
+
+    def _get_extracted_keywords_list(self, processed_resume: ProcessedResume) -> List[str]:
+        """Return a normalized list of extracted keywords from various stored formats."""
+        raw = getattr(processed_resume, "extracted_keywords", None)
+        if not raw:
+            return []
+        if isinstance(raw, list):
+            return raw
+        if isinstance(raw, dict):
+            for key in ("extracted_keywords", "extractedKeywords"):
+                if key in raw and isinstance(raw[key], list):
+                    return raw[key]
+            return []
+        if isinstance(raw, str):
+            try:
+                parsed = json.loads(raw)
+                if isinstance(parsed, list):
+                    return parsed
+                if isinstance(parsed, dict):
+                    for key in ("extracted_keywords", "extractedKeywords"):
+                        if key in parsed and isinstance(parsed[key], list):
+                            return parsed[key]
+                    return []
+            except Exception:
+                parts = re.split(r"[\n,;]+", raw)
+                return [p.strip() for p in parts if p.strip()]
+        return []
 
     def calculate_cosine_similarity(
         self,
@@ -447,9 +573,7 @@ class ScoreImprovementService:
 
         job_keywords_raw = processed_job.extracted_keywords
         
-        resume_keywords_raw = json.loads(processed_resume.extracted_keywords).get(
-            "extracted_keywords", []
-        )
+        resume_keywords_raw = self._get_extracted_keywords_list(processed_resume)
         logger.info(f"EXTRACTED JOB KEYWORDS: {job_keywords_raw}")
         logger.info(f"EXTRACTED RESUME KEYWORDS: {resume_keywords_raw}")            
         job_keywords_list = self._normalize_keyword_list(job_keywords_raw)
@@ -576,12 +700,8 @@ class ScoreImprovementService:
         yield f"data: {json.dumps({'status': 'parsing', 'message': 'Parsing resume content...'})}\n\n"
         await asyncio.sleep(2)
 
-        job_keywords_raw = json.loads(processed_job.extracted_keywords).get(
-            "extracted_keywords", []
-        )
-        resume_keywords_raw = json.loads(processed_resume.extracted_keywords).get(
-            "extracted_keywords", []
-        )
+        job_keywords_raw = self._get_extracted_keywords_list(processed_job)
+        resume_keywords_raw = self._get_extracted_keywords_list(processed_resume)
 
         job_keywords_list = self._normalize_keyword_list(job_keywords_raw)
         resume_keywords_list = self._normalize_keyword_list(resume_keywords_raw)
