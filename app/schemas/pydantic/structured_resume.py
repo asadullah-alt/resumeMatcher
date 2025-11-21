@@ -21,7 +21,7 @@ class Experience(BaseModel):
     job_title: str = Field(..., alias="job_title")
     company: Optional[str] = None
     location: Optional[str] = None
-    start_date: str = Field(..., alias="start_date")
+    start_date: Optional[str] = Field(..., alias="start_date")
     end_date: Optional[str] = Field(..., alias="end_date")
     description: Optional[List[str]] = Field(default_factory=list, alias="description")
     technologies_used: Optional[List[str]] = Field(
@@ -32,7 +32,7 @@ class Experience(BaseModel):
 class Project(BaseModel):
     project_name: str = Field(..., alias="project_name")
     description: Optional[str] = None
-    technologies_used: List[str] = Field(..., alias="technologies_used")
+    technologies_used: Optional[List[str]] = Field(..., alias="technologies_used")
     link: Optional[str] = None
     start_date: Optional[str] = Field(None, alias="start_date")
     end_date: Optional[str] = Field(None, alias="end_date")
