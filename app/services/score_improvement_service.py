@@ -257,7 +257,7 @@ class ScoreImprovementService:
         if _is_empty_kw(processed_resume.extracted_keywords):
             logger.info(f"No extracted_keywords for resume_id={resume_id}; extracting via md agent")
             # Use the raw resume content to extract keywords via the markdown agent
-            raw_text = resume.content if hasattr(resume, "content") else None
+            raw_text  = processed_resume.model_dump_json() if processed_resume else None
             if raw_text:
                 prompt = (
                     "Extract the most important skills and keywords from the resume text below. "
