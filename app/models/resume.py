@@ -26,8 +26,8 @@ class Experience(BaseModel):
     job_title: str = Field(..., alias="job_title")
     company: Optional[str] = None
     location: Optional[str] = None
-    start_date: str = Field(..., alias="start_date")
-    end_date: Optional[str] = Field(..., alias="end_date")
+    start_date: Optional[str] = Field(None, alias="start_date")
+    end_date: Optional[str] = Field(None, alias="end_date")
     description: Optional[List[str]] = Field(default_factory=list)
     technologies_used: Optional[List[str]] = Field(default_factory=list, alias="technologies_used")
 
