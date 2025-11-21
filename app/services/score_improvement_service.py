@@ -219,7 +219,7 @@ class ScoreImprovementService:
         if not processed_resume:
             raise ResumeParsingError(resume_id=resume_id)
 
-        self._validate_resume_keywords(processed_resume, resume_id,resume)
+        await self._validate_resume_keywords(processed_resume, resume_id, resume)
 
         return resume, processed_resume
 
@@ -461,13 +461,12 @@ class ScoreImprovementService:
         resume, processed_resume = await self._get_resume(resume_id)
         job, processed_job = await self._get_job(job_id)
 
-        job_keywords_raw = processed_job.extracted_keywords
+        # extracted_keywords is now a list, not a JSON string
+        job_keywords_raw = processed_job.extracted_keywords or []
+        resume_keywords_raw = processed_resume.extracted_keywords or []
         
-        resume_keywords_raw = json.loads(processed_resume.extracted_keywords).get(
-            "extracted_keywords", []
-        )
         logger.info(f"EXTRACTED JOB KEYWORDS: {job_keywords_raw}")
-        logger.info(f"EXTRACTED RESUME KEYWORDS: {resume_keywords_raw}")            
+        logger.info(f"EXTRACTED RESUME KEYWORDS: {resume_keywords_raw}")
         job_keywords_list = self._normalize_keyword_list(job_keywords_raw)
         resume_keywords_list = self._normalize_keyword_list(resume_keywords_raw)
 
