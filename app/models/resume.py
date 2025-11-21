@@ -91,6 +91,6 @@ class Resume(Document):
     resume_id: str
     resume_name: str
     content: str
-    content_type: str
+    content_type: Optional[str]
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
