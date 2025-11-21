@@ -2,6 +2,7 @@ from .resume import ProcessedResume, Resume
 from .user import User
 from .job import ProcessedJob, Job
 from .improvement import Improvement
+from .cover_letter import CoverLetter
 
 __all__ = [
     "Resume",
@@ -10,4 +11,5 @@ __all__ = [
     "User",
     "Job",
     "Improvement",
+    "CoverLetter",
 ]
