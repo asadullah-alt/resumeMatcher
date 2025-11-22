@@ -47,9 +47,7 @@ class CoverLetterService:
         # Check if cover letter already exists
         try:
             existing_cover_letter = await CoverLetter.find_one(
-                CoverLetter.job_id == job_id,
-                CoverLetter.resume_id == resume_id,
-                CoverLetter.user_id == user_id
+                CoverLetter.job_id == job_id                
             )
             logger.info(f"###########Existing cover letter: {existing_cover_letter}")
             if existing_cover_letter:
