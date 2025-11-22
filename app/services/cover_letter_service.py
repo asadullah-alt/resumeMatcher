@@ -46,13 +46,17 @@ class CoverLetterService:
         logger.info(f"###########Job id: {job_id}") 
         # Check if cover letter already exists
         try:
-            existing_cover_letter = await CoverLetter.find_one(
-                CoverLetter.job_id == job_id                
-            )
-            logger.info(f"###########Existing cover letter: {existing_cover_letter}")
-            if existing_cover_letter:
-                return existing_cover_letter.content
-
+            try:
+                existing_cover_letter = await CoverLetter.find_one(
+                    CoverLetter.job_id == job_id                
+                )
+                logger.info(f"###########Existing cover letter: {existing_cover_letter}")
+                if existing_cover_letter:
+                    return existing_cover_letter.content
+            except Exception as e:
+                logger.error(f"Error fetching existing cover letter: {e}")
+                raise
+            
             # Fetch Resume
             logger.info(f"###########Resume id: {resume_id}")
             resume_data = await self.resume_service.get_resume_with_processed_data(resume_id)
