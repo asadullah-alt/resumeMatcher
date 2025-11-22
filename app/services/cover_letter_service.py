@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class CoverLetterService:
     def __init__(self, db: object):
         self.db = db
-        self.agent_manager = AgentManager()
+        self.agent_manager = AgentManager(strategy="md")
         self.job_service = JobService(db)
         self.resume_service = ResumeService(db)
 

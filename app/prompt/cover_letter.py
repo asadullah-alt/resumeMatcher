@@ -14,4 +14,7 @@ The cover letter should be tailored to the job description, emphasizing how the 
 Structure the cover letter as follows:
 1. Introduction: Briefly introduce the candidate and express enthusiasm for the position.
 2. Body: Highlight key skills, experiences, and achievements from the resume that align with the job requirements.
-3. Conclusion: Reiterate interest in the role and express eagerness to contribute to the company."""
+3. Conclusion: Reiterate interest in the role and express eagerness to contribute to the company.
+NOTE: ONLY OUTPUT THE COVER LETTER IN MARKDOWN FORMAT.
+
+"""
