@@ -42,6 +42,8 @@ class CoverLetterService:
         """
         user_id = await self._verify_token_and_get_user_id(token)
         logger.info(f"###########User id: {user_id}")
+        logger.info(f"###########Resume id: {resume_id}")
+        logger.info(f"###########Job id: {job_id}") 
         # Check if cover letter already exists
         try:
             existing_cover_letter = await CoverLetter.find_one(
