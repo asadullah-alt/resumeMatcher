@@ -1,21 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
 from app.services.cover_letter_service import CoverLetterService
-from app.core import init_db
-
+from app.core import get_db_session
 cover_letter_router = APIRouter()
 
 def get_cover_letter_service():
-    # Since init_db initializes Beanie, we might not need to pass db explicitly 
-    # if the service uses models directly. 
-    # However, the service constructor expects 'db'. 
-    # In main.py, init_db(app) is called.
-    # We can pass a dummy or the actual client if needed, 
-    # but based on other services, they seem to take 'db'.
-    # Let's assume we can pass None or a placeholder if it's just for compatibility,
-    # or better, let's check how other routers instantiate services.
-    # Checking resume_router would have been good.
-    # For now, I'll instantiate it.
-    return CoverLetterService(db=None) 
+    return CoverLetterService(db=get_db_session()) 
 
 @cover_letter_router.post("/getCoverletter")
 async def get_cover_letter(

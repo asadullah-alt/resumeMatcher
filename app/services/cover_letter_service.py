@@ -56,7 +56,7 @@ class CoverLetterService:
         resume_data = await self.resume_service.get_resume_with_processed_data(resume_id)
         if not resume_data:
              raise ValueError(f"Resume with id {resume_id} not found")
-
+        logger.info(f"###########Resume data: {resume_data}")
         # Fetch Job
         job_data = await self.job_service.get_job_with_processed_data(job_id, token)
         if not job_data:
