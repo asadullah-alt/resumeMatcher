@@ -279,7 +279,9 @@ class ResumeService:
 
         if processed_resume:
             combined_data["processed_resume"] = {
-                "personal_data": processed_resume.personal_data.model_dump(),
+                "personal_data": json.loads(processed_resume.personal_data)
+                if processed_resume.personal_data
+                else None,
                 "experiences": json.loads(processed_resume.experiences).get(
                     "experiences", []
                 )

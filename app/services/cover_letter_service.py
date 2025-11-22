@@ -4,7 +4,7 @@ from app.agent import AgentManager
 from app.prompt import prompt_factory
 from app.services.job_service import JobService
 from app.services.resume_service import ResumeService
-from app.models import CoverLetter, User
+from app.models import CoverLetter, User, Resume
 
 logger = logging.getLogger(__name__)
 
@@ -59,10 +59,13 @@ class CoverLetterService:
             
             # Fetch Resume
             logger.info(f"###########Resume id: {resume_id}")
-            resume_data = await self.resume_service.get_resume_with_processed_data(resume_id)
-            if not resume_data:
+            resume = await Resume.find_one(
+                Resume.resume_id == resume_id,
+                Resume.user_id == user_id
+            )
+            if not resume:
                 raise ValueError(f"Resume with id {resume_id} not found")
-            logger.info(f"###########Resume data: {resume_data}")
+            
             # Fetch Job
             job_data = await self.job_service.get_job_with_processed_data(job_id, token)
             if not job_data:
@@ -79,11 +82,7 @@ class CoverLetterService:
                 job_str = job_data.get("raw_job", {}).get("content", "")
 
             # Format Resume Details
-            processed_resume = resume_data.get("processed_resume")
-            if processed_resume:
-                resume_str = str(processed_resume) # Or format it nicely as JSON
-            else:
-                resume_str = resume_data.get("raw_resume", {}).get("content", "")
+            resume_str = resume.content
 
             # Get Prompt
             prompt_template = prompt_factory.get("cover_letter")
