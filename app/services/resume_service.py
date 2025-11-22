@@ -279,9 +279,7 @@ class ResumeService:
 
         if processed_resume:
             combined_data["processed_resume"] = {
-                "personal_data": json.loads(processed_resume.personal_data)
-                if processed_resume.personal_data
-                else None,
+                "personal_data": processed_resume.personal_data,
                 "experiences": json.loads(processed_resume.experiences).get(
                     "experiences", []
                 )
