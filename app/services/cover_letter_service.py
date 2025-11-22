@@ -41,18 +41,19 @@ class CoverLetterService:
         Saves the generated cover letter to the database.
         """
         user_id = await self._verify_token_and_get_user_id(token)
-
+        logger.info(f"###########User id: {user_id}")
         # Check if cover letter already exists
         existing_cover_letter = await CoverLetter.find_one(
             CoverLetter.job_id == job_id,
             CoverLetter.resume_id == resume_id,
             CoverLetter.user_id == user_id
         )
-        
+        logger.info(f"###########Existing cover letter: {existing_cover_letter}")
         if existing_cover_letter:
             return existing_cover_letter.content
 
         # Fetch Resume
+        logger.info(f"###########Resume id: {resume_id}")
         resume_data = await self.resume_service.get_resume_with_processed_data(resume_id)
         if not resume_data:
              raise ValueError(f"Resume with id {resume_id} not found")
