@@ -24,12 +24,12 @@ class Settings(BaseSettings):
     SYNC_DATABASE_URL: str = f"sqlite:///{_DEFAULT_DB_PATH}"
     ASYNC_DATABASE_URL: str = f"sqlite+aiosqlite:///{_DEFAULT_DB_PATH}"
     SESSION_SECRET_KEY: str = "resume-matcher-dev"
-    LLM_PROVIDER: Optional[str] = "ollama" 
+    LLM_PROVIDER: Optional[str] = "openai" 
     LLM_API_KEY: Optional[str] = None
-    LLM_BASE_URL: Optional[str] = "http://localhost:11434"
-    #LL_MODEL: Optional[str] = "codellama:13b"
-    #LL_MODEL: Optional[str] = "gemini-2.5-flash"
-    LL_MODEL: Optional[str] = "gemma3:4b"
+    #LLM_BASE_URL: Optional[str] = "http://localhost:11434"
+    #LL_MODEL: Optional[str] = "gemma3:4b"
+    LLM_BASE_URL: Optional[str] = "https://api.groq.com/openai/v1"
+    LL_MODEL: Optional[str] = "openai/gpt-oss-20b"
     EMBEDDING_PROVIDER: Optional[str] = "ollama"
     EMBEDDING_API_KEY: Optional[str] = None
     EMBEDDING_BASE_URL: Optional[str] = None
