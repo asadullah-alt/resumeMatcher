@@ -1,6 +1,6 @@
 import logging
 import traceback
-
+import time
 from uuid import uuid4
 from typing import Any
 from fastapi import APIRouter, HTTPException, Depends, Request, status, Query
@@ -26,6 +26,8 @@ async def upload_job(
     """
     Accepts a job description as a MarkDown text and stores it in the database.
     """
+     # Start timing
+    start_time = time.perf_counter()
     request_id = getattr(request.state, "request_id", str(uuid4()))
 
     allowed_content_types = [
@@ -60,7 +62,9 @@ async def upload_job(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"{str(e)}",
         )
-
+    end_time = time.perf_counter()
+    time_taken = end_time - start_time
+    logger.info(f"Job upload processed in {time_taken:.4f} seconds")
     return {
         "message": "data successfully processed",
         "job_id": job_ids,
