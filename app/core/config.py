@@ -28,8 +28,8 @@ class Settings(BaseSettings):
     LLM_API_KEY: Optional[str] = None
     #LLM_BASE_URL: Optional[str] = "http://localhost:11434"
     #LL_MODEL: Optional[str] = "gemma3:4b"
-    LLM_BASE_URL: Optional[str] = "https://api.groq.com/openai/v1"
-    LL_MODEL: Optional[str] = "openai/gpt-oss-20b"
+    LLM_BASE_URL: Optional[str] = "https://openrouter.ai/api/v1"
+    LL_MODEL: Optional[str] = "openai/gpt-oss-safeguard-20b"
     EMBEDDING_PROVIDER: Optional[str] = "ollama"
     EMBEDDING_API_KEY: Optional[str] = None
     EMBEDDING_BASE_URL: Optional[str] = None
