@@ -20,7 +20,7 @@ class OpenAIProvider(Provider):
         api_key = api_key or settings.LLM_API_KEY or os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise ProviderError("OpenAI API key is missing")
-        self._client = OpenAI(api_key=api_key)
+        self._client = OpenAI(api_key=api_key,base_url=settings.LLM_BASE_URL)
         self.model = model_name
         self.opts = opts
         self.instructions = ""
