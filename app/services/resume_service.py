@@ -218,26 +218,32 @@ class ResumeService:
             resume_text,
         )
         logger.info(f"Structured Resume Prompt: {prompt}")
-        raw_output = await self.json_agent_manager.run(prompt=prompt)
-        logger.info(f"Raw ouptut{raw_output}")
-        try:
-            structured_resume: StructuredResumeModel = (
-                StructuredResumeModel.model_validate(raw_output)
-            )
-        except ValidationError as e:
-            logger.info(f"Validation error: {e}")
-            error_details = []
-            for error in e.errors():
-                field = " -> ".join(str(loc) for loc in error["loc"])
-                error_details.append(f"{field}: {error['msg']}")
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"Attempt {attempt + 1} of {max_retries} to extract structured resume")
+                raw_output = await self.json_agent_manager.run(prompt=prompt)
+                logger.info(f"Raw output: {raw_output}")
 
-            user_friendly_message = "Resume validation failed. " + "; ".join(
-                error_details
-            )
-            raise ResumeValidationError(
-                validation_error=user_friendly_message,
-                message=f"Resume structure validation failed: {user_friendly_message}",
-            )
+                structured_resume: StructuredResumeModel = (
+                    StructuredResumeModel.model_validate(raw_output)
+                )
+                break
+            except ValidationError as e:
+                logger.info(f"Validation error on attempt {attempt + 1}: {e}")
+                if attempt == max_retries - 1:
+                    error_details = []
+                    for error in e.errors():
+                        field = " -> ".join(str(loc) for loc in error["loc"])
+                        error_details.append(f"{field}: {error['msg']}")
+
+                    user_friendly_message = "Resume validation failed. " + "; ".join(
+                        error_details
+                    )
+                    raise ResumeValidationError(
+                        validation_error=user_friendly_message,
+                        message=f"Resume structure validation failed: {user_friendly_message}",
+                    )
         logger.info(f"#########################Extracted sturctured resume################")
         return structured_resume.model_dump()
 

@@ -104,38 +104,31 @@ async def upload_resume(
             detail=f"File size exceeds the 2 MB limit. Current size: {len(file_bytes) / 1024 / 1024:.2f} MB",
         )
     
-    max_retries = 3
-    for attempt in range(max_retries):
-        try:
-            resume_service = ResumeService(db)
-            resume_id = await resume_service.convert_and_store_resume(
-                file_bytes=file_bytes,
-                file_type=file.content_type,
-                filename=file.filename,
-                content_type="md",
-                token=token,
-                resume_name=resume_name,
-            )
-            break
-        except (ResumeValidationError, Exception) as e:
-            if attempt < max_retries - 1:
-                logger.warning(f"Attempt {attempt + 1} failed: {str(e)}. Retrying...")
-                continue
-            
-            if isinstance(e, ResumeValidationError):
-                logger.warning(f"Resume validation failed: {str(e)}")
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=str(e),
-                )
-            else:
-                logger.error(
-                    f"Error processing file: {str(e)} - traceback: {traceback.format_exc()}"
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Error processing file: {str(e)}",
-                )
+    try:
+        resume_service = ResumeService(db)
+        resume_id = await resume_service.convert_and_store_resume(
+           
+            file_bytes=file_bytes,
+            file_type=file.content_type,
+            filename=file.filename,
+            content_type="md",
+            token=token,
+            resume_name=resume_name,
+        )
+    except ResumeValidationError as e:
+        logger.warning(f"Resume validation failed: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e),
+        )
+    except Exception as e:
+        logger.error(
+            f"Error processing file: {str(e)} - traceback: {traceback.format_exc()}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error processing file: {str(e)}",
+        )
 
     return {
         "message": f"File {file.filename} successfully processed as MD and stored in the DB",
