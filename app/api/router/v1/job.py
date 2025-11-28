@@ -49,7 +49,11 @@ async def upload_job(
 
     try:
         job_service = JobService(db)
-        job_ids = await job_service.create_and_store_job(payload.model_dump())
+        job_ids, is_existing = await job_service.create_and_store_job(payload.model_dump())
+        
+        message = "data successfully processed"
+        if is_existing:
+            message = "Job already exists"
 
     except AssertionError as e:
         raise HTTPException(
@@ -66,7 +70,7 @@ async def upload_job(
     time_taken = end_time - start_time
     logger.info(f"Job upload processed in {time_taken:.4f} seconds")
     return {
-        "message": "data successfully processed",
+        "message": message,
         "job_id": job_ids,
         "request": {
             "request_id": request_id,

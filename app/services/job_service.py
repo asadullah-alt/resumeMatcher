@@ -134,7 +134,7 @@ class JobService:
             
         return str(user.id)
 
-    async def create_and_store_job(self, job_data: dict) -> List[str]:
+    async def create_and_store_job(self, job_data: dict) -> tuple[str, bool]:
         """
         Stores job data in the database and returns a list of job IDs.
         
@@ -147,12 +147,19 @@ class JobService:
         user_id = await self._verify_token_and_get_user_id(token)
         job_description_raw = job_data.get("job_descriptions")
         job_url = job_data.get("job_url")
+
+        if job_url:
+            existing_job = await Job.find_one({"job_url": job_url, "user_id": user_id})
+            if existing_job:
+                logger.info(f"Job with url {job_url} already exists for user {user_id}")
+                return existing_job.job_id, True
+
         job_description = self.clean_html_body(job_description_raw)
         job_id = str(uuid.uuid4())
         job = Job(job_id=job_id,user_id=user_id,content=job_description,job_url=job_url)
         await job.insert()
         await self._extract_and_store_structured_job(job_id=job_id,user_id=user_id,job_description_text=job_description,job_url=job_url)
-        return job_id
+        return job_id, False
 
     async def _is_resume_available(self, resume_id: str) -> bool:
         """
