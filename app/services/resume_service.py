@@ -28,13 +28,14 @@ class ResumeService:
         self.md = MarkItDown(enable_plugins=False)
         self.json_agent_manager = AgentManager()
         
-        # Validate dependencies for DOCX processing
-        self._validate_docx_dependencies()
+        # Validate dependencies for DOCX and PDF processing
+        self._validate_dependencies()
 
-    def _validate_docx_dependencies(self):
-        """Validate that required dependencies for DOCX processing are available"""
+    def _validate_dependencies(self):
+        """Validate that required dependencies for DOCX and PDF processing are available"""
         missing_deps = []
         
+        # DOCX Validation
         try:
             # Check if markitdown can handle docx files
             from markitdown.converters import DocxConverter
@@ -45,11 +46,17 @@ class ResumeService:
         except Exception as e:
             if "MissingDependencyException" in str(e) or "dependencies needed to read .docx files" in str(e):
                 missing_deps.append("markitdown[all]==0.1.2 (current installation missing DOCX extras)")
+
+        # PDF Validation (marker-pdf)
+        try:
+            import marker
+        except ImportError:
+            missing_deps.append("marker-pdf")
         
         if missing_deps:
             logger.warning(
-                f"Missing dependencies for DOCX processing: {', '.join(missing_deps)}. "
-                f"DOCX file processing may fail. Install with: pip install {' '.join(missing_deps)}"
+                f"Missing dependencies: {', '.join(missing_deps)}. "
+                f"File processing may fail. Install with: pip install {' '.join(missing_deps)}"
             )
 
 
@@ -77,24 +84,39 @@ class ResumeService:
             temp_path = temp_file.name
 
         try:
-            try:
-                result = self.md.convert(temp_path)
-                text_content = result.text_content
-            except Exception as e:
-                # Handle specific markitdown conversion errors
-                error_msg = str(e)
-                if "MissingDependencyException" in error_msg or "DocxConverter" in error_msg:
-                    raise Exception(
-                        "File conversion failed: markitdown is missing DOCX support. "
-                        "Please install with: pip install 'markitdown[all]==0.1.2' or contact system administrator."
-                    ) from e
-                elif "docx" in error_msg.lower():
-                    raise Exception(
-                        f"DOCX file processing failed: {error_msg}. "
-                        "Please ensure the file is a valid DOCX document."
-                    ) from e
-                else:
-                    raise Exception(f"File conversion failed: {error_msg}") from e
+            text_content = ""
+            if file_type == "application/pdf":
+                try:
+                    from marker.convert import convert_single_pdf
+                    from marker.models import load_all_models
+                    
+                    # Load models
+                    model_list = load_all_models()
+                    full_text, images, out_meta = convert_single_pdf(temp_path, model_list)
+                    text_content = full_text
+                except ImportError:
+                     raise Exception("marker-pdf not installed. Please install it to process PDFs.")
+                except Exception as e:
+                     raise Exception(f"PDF conversion failed with marker-pdf: {str(e)}")
+            else:
+                try:
+                    result = self.md.convert(temp_path)
+                    text_content = result.text_content
+                except Exception as e:
+                    # Handle specific markitdown conversion errors
+                    error_msg = str(e)
+                    if "MissingDependencyException" in error_msg or "DocxConverter" in error_msg:
+                        raise Exception(
+                            "File conversion failed: markitdown is missing DOCX support. "
+                            "Please install with: pip install 'markitdown[all]==0.1.2' or contact system administrator."
+                        ) from e
+                    elif "docx" in error_msg.lower():
+                        raise Exception(
+                            f"DOCX file processing failed: {error_msg}. "
+                            "Please ensure the file is a valid DOCX document."
+                        ) from e
+                    else:
+                        raise Exception(f"File conversion failed: {error_msg}") from e
             
             resume_id,user_id = await self._store_resume_in_db(text_content, content_type,token,resume_name)
 
