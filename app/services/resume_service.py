@@ -159,51 +159,58 @@ class ResumeService:
         """
         extract and store structured resume data in the database
         """
-        try:
-            structured_resume = await self._extract_structured_json(resume_text)
-            if not structured_resume:
-                logger.error("Structured resume extraction returned None.")
-                raise ResumeValidationError(
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                structured_resume = await self._extract_structured_json(resume_text)
+                if not structured_resume:
+                    logger.error("Structured resume extraction returned None.")
+                    raise ResumeValidationError(
+                        resume_id=resume_id,
+                        message="Failed to extract structured data from resume. Please ensure your resume contains all required sections.",
+                    )
+
+                # If both personal_data and experiences are missing/empty, treat as invalid
+                personal_data = structured_resume.get("personal_data")
+                experiences = structured_resume.get("experiences")
+
+                if (personal_data is None or personal_data == {}) and (
+                    experiences is None or (isinstance(experiences, list) and len(experiences) == 0)
+                ):
+                    logger.warning(f"Structured resume for resume_id={resume_id} missing personal_data and experiences; not saving processed resume.")
+                    # Do not save ProcessedResume; indicate invalid resume to caller
+                    return False
+
+                processed_resume = ProcessedResume(
+                    resume_name=resume_name,
+                    user_id=str(user_id) if user_id else None,
                     resume_id=resume_id,
-                    message="Failed to extract structured data from resume. Please ensure your resume contains all required sections.",
+                    personal_data=structured_resume.get("personal_data"),
+                    experiences=structured_resume.get("experiences") or [],
+                    projects=structured_resume.get("projects") or [],
+                    skills=structured_resume.get("skills") or [],
+                    research_work=structured_resume.get("research_work") or [],
+                    achievements=structured_resume.get("achievements") or [],
+                    education=structured_resume.get("education") or [],
+                    extracted_keywords=structured_resume.get("extracted_keywords") or [],
                 )
 
-            # If both personal_data and experiences are missing/empty, treat as invalid
-            personal_data = structured_resume.get("personal_data")
-            experiences = structured_resume.get("experiences")
-
-            if (personal_data is None or personal_data == {}) and (
-                experiences is None or (isinstance(experiences, list) and len(experiences) == 0)
-            ):
-                logger.warning(f"Structured resume for resume_id={resume_id} missing personal_data and experiences; not saving processed resume.")
-                # Do not save ProcessedResume; indicate invalid resume to caller
-                return False
-
-            processed_resume = ProcessedResume(
-                resume_name=resume_name,
-                user_id=str(user_id) if user_id else None,
-                resume_id=resume_id,
-                personal_data=structured_resume.get("personal_data"),
-                experiences=structured_resume.get("experiences") or [],
-                projects=structured_resume.get("projects") or [],
-                skills=structured_resume.get("skills") or [],
-                research_work=structured_resume.get("research_work") or [],
-                achievements=structured_resume.get("achievements") or [],
-                education=structured_resume.get("education") or [],
-                extracted_keywords=structured_resume.get("extracted_keywords") or [],
-            )
-
-            await processed_resume.insert()
-            return True
-        except ResumeValidationError:
-            # Re-raise validation errors to propagate to the upload endpoint
-            raise
-        except Exception as e:
-            logger.error(f"Error storing structured resume: {str(e)}")
-            raise ResumeValidationError(
-                resume_id=resume_id,
-                message=f"Failed to store structured resume data: {str(e)}",
-            )
+                await processed_resume.insert()
+                return True
+            except ResumeValidationError:
+                if attempt == max_retries - 1:
+                    # Re-raise validation errors to propagate to the upload endpoint
+                    raise
+                logger.warning(f"Attempt {attempt + 1} failed with validation error. Retrying...")
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    logger.error(f"Error storing structured resume: {str(e)}")
+                    raise ResumeValidationError(
+                        resume_id=resume_id,
+                        message=f"Failed to store structured resume data: {str(e)}",
+                    )
+                logger.warning(f"Attempt {attempt + 1} failed with error: {str(e)}. Retrying...")
+        return False
 
     async def _extract_structured_json(
         self, resume_text: str
@@ -218,32 +225,26 @@ class ResumeService:
             resume_text,
         )
         logger.info(f"Structured Resume Prompt: {prompt}")
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                logger.info(f"Attempt {attempt + 1} of {max_retries} to extract structured resume")
-                raw_output = await self.json_agent_manager.run(prompt=prompt)
-                logger.info(f"Raw output: {raw_output}")
+        raw_output = await self.json_agent_manager.run(prompt=prompt)
+        logger.info(f"Raw ouptut{raw_output}")
+        try:
+            structured_resume: StructuredResumeModel = (
+                StructuredResumeModel.model_validate(raw_output)
+            )
+        except ValidationError as e:
+            logger.info(f"Validation error: {e}")
+            error_details = []
+            for error in e.errors():
+                field = " -> ".join(str(loc) for loc in error["loc"])
+                error_details.append(f"{field}: {error['msg']}")
 
-                structured_resume: StructuredResumeModel = (
-                    StructuredResumeModel.model_validate(raw_output)
-                )
-                break
-            except ValidationError as e:
-                logger.info(f"Validation error on attempt {attempt + 1}: {e}")
-                if attempt == max_retries - 1:
-                    error_details = []
-                    for error in e.errors():
-                        field = " -> ".join(str(loc) for loc in error["loc"])
-                        error_details.append(f"{field}: {error['msg']}")
-
-                    user_friendly_message = "Resume validation failed. " + "; ".join(
-                        error_details
-                    )
-                    raise ResumeValidationError(
-                        validation_error=user_friendly_message,
-                        message=f"Resume structure validation failed: {user_friendly_message}",
-                    )
+            user_friendly_message = "Resume validation failed. " + "; ".join(
+                error_details
+            )
+            raise ResumeValidationError(
+                validation_error=user_friendly_message,
+                message=f"Resume structure validation failed: {user_friendly_message}",
+            )
         logger.info(f"#########################Extracted sturctured resume################")
         return structured_resume.model_dump()
 
