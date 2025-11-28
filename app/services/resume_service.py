@@ -87,13 +87,15 @@ class ResumeService:
             text_content = ""
             if file_type == "application/pdf":
                 try:
-                    from marker.convert import convert_single_pdf
-                    from marker.models import load_all_models
+                    from marker.converters.pdf import PdfConverter
+                    from marker.models import create_model_dict
+                    from marker.output import text_from_rendered
                     
                     # Load models
-                    model_list = load_all_models()
-                    full_text, images, out_meta = convert_single_pdf(temp_path, model_list)
-                    text_content = full_text
+                    converter = PdfConverter(artifact_dict=create_model_dict(),)
+                    rendered = converter(temp_path)
+                    text, _, images = text_from_rendered(rendered)
+                    text_content = text
                 except ImportError:
                      raise Exception("marker-pdf not installed. Please install it to process PDFs.")
                 except Exception as e:
