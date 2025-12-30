@@ -24,12 +24,13 @@ class Settings(BaseSettings):
     SYNC_DATABASE_URL: str = f"sqlite:///{_DEFAULT_DB_PATH}"
     ASYNC_DATABASE_URL: str = f"sqlite+aiosqlite:///{_DEFAULT_DB_PATH}"
     SESSION_SECRET_KEY: str = "resume-matcher-dev"
-    LLM_PROVIDER: Optional[str] = "ollama" 
+    LLM_PROVIDER: Optional[str] = "openai" 
     LLM_API_KEY: Optional[str] = None
-    LLM_BASE_URL: Optional[str] = "http://localhost:11434"
-    LL_MODEL: Optional[str] = "gemma3:4b"
-    #LLM_BASE_URL: Optional[str] = "https://openrouter.ai/api/v1"
+    #LLM_BASE_URL: Optional[str] = "http://localhost:11434"
+    #LL_MODEL: Optional[str] = "gemma3:4b"
+    LLM_BASE_URL: Optional[str] = "https://openrouter.ai/api/v1"
     #LL_MODEL: Optional[str] = "openai/gpt-oss-safeguard-20b"
+    LLM_MODEL: Optional[str] = "openai/gpt-4o"
     EMBEDDING_PROVIDER: Optional[str] = "ollama"
     EMBEDDING_API_KEY: Optional[str] = None
     EMBEDDING_BASE_URL: Optional[str] = None
