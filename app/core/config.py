@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     #LL_MODEL: Optional[str] = "gemma3:4b"
     LLM_BASE_URL: Optional[str] = "https://openrouter.ai/api/v1"
     #LL_MODEL: Optional[str] = "openai/gpt-oss-safeguard-20b"
-    LLM_MODEL: Optional[str] = "openai/gpt-4o"
+    LL_MODEL: Optional[str] = "openai/gpt-4o"
     EMBEDDING_PROVIDER: Optional[str] = "ollama"
     EMBEDDING_API_KEY: Optional[str] = None
     EMBEDDING_BASE_URL: Optional[str] = None
