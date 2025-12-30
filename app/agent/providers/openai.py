@@ -17,44 +17,61 @@ class OpenAIProvider(Provider):
                  opts: Dict[str, Any] = None):
         if opts is None:
             opts = {}
+        
+        # Ensure 12k is the default if not provided in opts
+        if "max_tokens" not in opts and "max_output_tokens" not in opts:
+            opts["max_tokens"] = 12000
+            
         api_key = api_key or settings.LLM_API_KEY or os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise ProviderError("OpenAI API key is missing")
-        self._client = OpenAI(api_key=api_key,base_url=settings.LLM_BASE_URL)
+            
+        self._client = OpenAI(api_key=api_key, base_url=settings.LLM_BASE_URL)
         self.model = model_name
         self.opts = opts
         self.instructions = ""
 
     def _generate_sync(self, prompt: str, options: Dict[str, Any]) -> str:
         try:
-            response = self._client.responses.create(
+            # Note: Using standard chat.completions for OpenRouter/OpenAI compatibility
+            response = self._client.chat.completions.create(
                 model=self.model,
-                instructions=self.instructions,
-                input=prompt,
+                messages=[
+                    {"role": "system", "content": self.instructions},
+                    {"role": "user", "content": prompt}
+                ],
                 **options,
             )
-            return response.output_text
+            return response.choices[0].message.content
         except Exception as e:
             raise ProviderError(f"OpenAI - error generating response: {e}") from e
 
     async def __call__(self, prompt: str, **generation_args: Any) -> str:
-        if generation_args:
-            logger.warning(f"OpenAIProvider - generation_args not used {generation_args}")
+        # Define allowed keys for the API
         allowed = {
             "temperature",
             "top_p",
-            "max_output_tokens",
+            "max_tokens", # Added this
+            "max_output_tokens", # Keep for internal compatibility
             "verbosity",
             "reasoning_effort",
             "grammar",
             "extra_headers",
         }
+        
         myopts = {}
+        # Merge self.opts and generation_args
+        combined_args = {**self.opts, **generation_args}
+        
         for key in allowed:
-            value = self.opts.get(key)
+            value = combined_args.get(key)
             if value is not None:
-                myopts[key] = value
-        myopts.update({k: v for k, v in generation_args.items() if k in allowed and v is not None})
+                # Map 'max_output_tokens' to 'max_tokens' for the OpenAI Client
+                if key == "max_output_tokens":
+                    myopts["max_tokens"] = value
+                else:
+                    myopts[key] = value
+
         return await run_in_threadpool(self._generate_sync, prompt, myopts)
 
 
