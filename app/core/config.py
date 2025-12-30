@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     LLM_PROVIDER: Optional[str] = "ollama" 
     LLM_API_KEY: Optional[str] = None
     LLM_BASE_URL: Optional[str] = "http://localhost:11434"
-    LL_MODEL: Optional[str] = "gemma3:4b"
+    LL_MODEL: Optional[str] = "mistral-nemo"
     #LLM_BASE_URL: Optional[str] = "https://openrouter.ai/api/v1"
     #LL_MODEL: Optional[str] = "openai/gpt-oss-safeguard-20b"
     #LL_MODEL: Optional[str] = "openai/gpt-4o"

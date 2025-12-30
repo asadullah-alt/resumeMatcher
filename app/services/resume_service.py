@@ -250,7 +250,7 @@ class ResumeService:
         )
         logger.info(f"Structured Resume Prompt: {prompt}")
         raw_output = await self.json_agent_manager.run(prompt=prompt)
-        logger.info(f"Raw ouptut{raw_output}")
+        logger.info(f"Raw ouptut {raw_output}")
         try:
             structured_resume: StructuredResumeModel = (
                 StructuredResumeModel.model_validate(raw_output)
