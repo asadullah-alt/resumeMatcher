@@ -1,6 +1,7 @@
 PROMPT = """
 You are a JSON extraction engine. Convert the following resume text into precisely the JSON schema specified below.
 - Map each resume section to the schema without inventing information.
+- Always extract keywords from the resume text for the `extracted_keywords` field.
 - If a field is missing in the source text, use an empty string or empty list as appropriate.
 - Preserve bullet points in the `description` arrays using short factual sentences.
 - Use "Present" if an end date is ongoing and prefer YYYY-MM-DD where dates are available.
