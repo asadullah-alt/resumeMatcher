@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, AliasChoices
 
 
 class Location(BaseModel):
@@ -30,9 +30,9 @@ class Experience(BaseModel):
 
 
 class Project(BaseModel):
-    project_name: str = Field(..., alias="project_name")
+    project_name: str = Field(..., validation_alias=AliasChoices('name', 'title', 'project_name'))
     description: Optional[str] = None
-    technologies_used: Optional[List[str]] = Field(..., alias="technologies_used")
+    technologies_used: Optional[List[str]] = Field(..., validation_alias=AliasChoices('technologies', 'tech_stack', 'tools',"technologies_used"))
     link: Optional[str] = None
     start_date: Optional[str] = Field(None, alias="start_date")
     end_date: Optional[str] = Field(None, alias="end_date")
@@ -78,3 +78,4 @@ class StructuredResumeModel(BaseModel):
     class ConfigDict:
         validate_by_name = True
         str_strip_whitespace = True
+        populate_by_name = True
