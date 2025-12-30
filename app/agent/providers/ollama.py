@@ -69,6 +69,11 @@ class OllamaProvider(Provider, OllamaBaseProvider):
         self.model = model_name
         self._client = ollama.Client(host=api_base_url) if api_base_url else ollama.Client()
         self._ensure_model_pulled(model_name)
+        self.keep_loaded()
+    def keep_loaded(self):
+        """Sends a zero-token request to pin the model in memory."""
+        self._client.generate(model=self.model, keep_alive=-1)
+
 
     def _generate_sync(self, prompt: str, options: Dict[str, Any]) -> str:
         """
