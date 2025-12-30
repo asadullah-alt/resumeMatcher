@@ -61,7 +61,11 @@ class OllamaProvider(Provider, OllamaBaseProvider):
                  opts: Dict[str, Any] = None):
         if opts is None:
             opts = {}
-        self.opts = opts
+        default_opts = {
+            "num_ctx": 12288,
+            "temperature": 0  
+        }
+        self.opts = {**default_opts, **opts}
         self.model = model_name
         self._client = ollama.Client(host=api_base_url) if api_base_url else ollama.Client()
         self._ensure_model_pulled(model_name)
