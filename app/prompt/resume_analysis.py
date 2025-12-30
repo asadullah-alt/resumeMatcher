@@ -10,7 +10,7 @@ Instructions:
 - Provide `improvements` as 3-5 actionable bullet points. Each `suggestion` should be specific; include a `lineNumber` or section name when relevant, otherwise set it to null.
 - Use direct, professional wording. Avoid repeating the job description verbatim and do not invent experience that does not appear in either resume.
 - STRICTLY emit JSON that matches the schema below with no extra keys, prose, or markdown.
-
+- add another field called 'similarity_comparison' that compares the job description and the resume and gives a score out of 100. The score is mostly based on the skills match but also considers experience relevance and overall alignment.
 Schema:
 ```json
 {0}
