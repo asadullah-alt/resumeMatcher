@@ -244,6 +244,7 @@ class ResumeService:
         return the data in exact JSON schema we need.
         """
         prompt_template = prompt_factory.get("structured_resume")
+        print("Schema", json.dumps(json_schema_factory.get("structured_resume"), indent=2))
         prompt = prompt_template.format(
             json.dumps(json_schema_factory.get("structured_resume"), indent=2),
             resume_text,
