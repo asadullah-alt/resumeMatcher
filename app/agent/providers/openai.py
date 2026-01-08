@@ -4,13 +4,13 @@ import logging
 from openai import OpenAI
 from typing import Any, Dict
 from fastapi.concurrency import run_in_threadpool
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 from ..exceptions import ProviderError
 from .base import Provider, EmbeddingProvider
 from ...core import settings
 
 logger = logging.getLogger(__name__)
-load_dotenv()
+load_dotenv(find_dotenv(), override=True)
 
 class OpenAIProvider(Provider):
     def __init__(self, api_key: str | None = None, model_name: str = settings.LL_MODEL,
