@@ -7,4 +7,5 @@ SCHEMA = {
             "lineNumber": "string | null",
         }
     ],
+    "similarity_comparison": "number",
 }
