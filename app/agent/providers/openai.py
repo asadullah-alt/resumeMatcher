@@ -22,7 +22,7 @@ class OpenAIProvider(Provider):
         if "max_tokens" not in opts and "max_output_tokens" not in opts:
             opts["max_tokens"] = 12000
             
-        api_key = api_key or settings.LLM_API_KEY or os.getenv("OPENAI_API_KEY")
+        api_key = os.getenv("OPENAI_API_KEY")
         print("APIKEY",api_key)
         if not api_key:
             raise ProviderError("OpenAI API key is missing")
