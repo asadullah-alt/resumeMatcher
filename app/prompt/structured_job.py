@@ -5,7 +5,7 @@ You are a JSON-extraction engine. Convert the following raw job posting text int
 — Ensure any URLs (website, applyLink) conform to URI format.
 — Do not change the structure or key names; output only valid JSON matching the schema.
 - Do not format the response in Markdown or any other format. Just output raw JSON.
-
+- ExtractedKeywords should be a list of all the skills required hard skills or soft skills of any type
 Schema:
 ```json
 {0}
