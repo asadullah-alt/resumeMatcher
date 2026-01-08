@@ -15,7 +15,7 @@ from app.services import ResumeService
 from app.schemas.json import json_schema_factory
 from app.schemas.pydantic import ResumePreviewerModel, ResumeAnalysisModel
 from app.agent import EmbeddingManager, AgentManager
-from app.models import Resume, Job, ProcessedResume, ProcessedJob, ImprovedResume
+from app.models import Resume, Job, ProcessedResume, ProcessedJob, ImprovedResume, Improvement
 from fastapi.encoders import jsonable_encoder
 from .exceptions import (
     ResumeNotFoundError,
