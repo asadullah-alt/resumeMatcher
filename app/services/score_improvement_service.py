@@ -260,6 +260,7 @@ class ScoreImprovementService:
 
         if existing_improvement:
             # Update existing improvement
+            existing_improvement.similarity_comparison = improvement_data["similarity_comparison"]
             existing_improvement.original_score = improvement_data["original_score"]
             existing_improvement.new_score = improvement_data["new_score"]
             existing_improvement.updated_resume = improvement_data["updated_resume"]
@@ -292,6 +293,7 @@ class ScoreImprovementService:
                 updated_resume=improvement_data["updated_resume"],
                 resume_preview=improvement_data["resume_preview"],
                 details=improvement_data["details"],
+                similarity_comparison=improvement_data["similarity_comparison"],
                 commentary=improvement_data["commentary"],
                 improvements=improvement_data["improvements"],
                 original_resume_markdown=improvement_data["original_resume_markdown"],
