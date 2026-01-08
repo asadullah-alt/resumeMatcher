@@ -1,4 +1,4 @@
-from .resume import ProcessedResume, Resume
+from .resume import ProcessedResume, Resume, ImprovedResume
 from .user import User
 from .job import ProcessedJob, Job
 from .improvement import Improvement
@@ -12,4 +12,5 @@ __all__ = [
     "Job",
     "Improvement",
     "CoverLetter",
+    "ImprovedResume"
 ]
