@@ -63,6 +63,22 @@ class Education(BaseModel):
     grade: Optional[str] = None
     description: Optional[str] = None
 
+class ImprovedResume(Document):
+    """Improved resume stored as a Beanie Document with structured fields."""
+  
+    job_id: str
+    user_id: str
+    resume_name: str
+    resume_id: str
+    personal_data: Optional[PersonalData] = None
+    experiences: Optional[List[Experience]] = Field(default_factory=list)
+    projects: Optional[List[Project]] = Field(default_factory=list)
+    skills: Optional[List[Skill]] = Field(default_factory=list)
+    research_work: Optional[List[ResearchWork]] = Field(default_factory=list)
+    achievements: Optional[List[str]] = Field(default_factory=list)
+    education: Optional[List[Education]] = Field(default_factory=list)
+    extracted_keywords: Optional[List[str]] = Field(default_factory=list)
+    processed_at: datetime = Field(default_factory=datetime.utcnow)
 
 class ProcessedResume(Document):
     """Processed resume stored as a Beanie Document with structured fields.

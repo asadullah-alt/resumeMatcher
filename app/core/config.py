@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     EMBEDDING_API_KEY: Optional[str] = None
     EMBEDDING_BASE_URL: Optional[str] = None
     EMBEDDING_MODEL: Optional[str] = "dengcao/Qwen3-Embedding-0.6B:Q8_0"
-
+    
     model_config = SettingsConfigDict(
         env_file=os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, ".env"),
         env_file_encoding="utf-8",

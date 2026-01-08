@@ -11,3 +11,4 @@ class ResumeAnalysisModel(BaseModel):
     details: str
     commentary: str
     improvements: List[ImprovementItem]
+    similarity_comparison: Optional[str] = None

@@ -15,7 +15,7 @@ from app.services import ResumeService
 from app.schemas.json import json_schema_factory
 from app.schemas.pydantic import ResumePreviewerModel, ResumeAnalysisModel
 from app.agent import EmbeddingManager, AgentManager
-from app.models import Resume, Job, ProcessedResume, ProcessedJob, Improvement
+from app.models import Resume, Job, ProcessedResume, ProcessedJob, ImprovedResume
 from fastapi.encoders import jsonable_encoder
 from .exceptions import (
     ResumeNotFoundError,
@@ -547,6 +547,7 @@ class ScoreImprovementService:
             "resume_preview": resume_preview,
             "details": resume_analysis.get("details") if resume_analysis else "",
             "commentary": resume_analysis.get("commentary") if resume_analysis else "",
+            "similarity_comparison": resume_analysis.get("similarity_comparison") if resume_analysis else "",
             "improvements": resume_analysis.get("improvements") if resume_analysis else [],
             "original_resume_markdown": resume.content,
             "updated_resume_markdown": updated_resume,
