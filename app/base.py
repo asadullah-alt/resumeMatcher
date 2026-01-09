@@ -20,6 +20,8 @@ from .core import (
 # models are Beanie documents and will be initialized by init_db
 
 
+from fastapi.responses import HTMLResponse
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize MongoDB / Beanie
@@ -39,9 +41,33 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.PROJECT_NAME,
         docs_url="/api/docs",
+        redoc_url="/api/redoc",
         openapi_url="/api/openapi.json",
         lifespan=lifespan,
     )
+
+    @app.get("/api/scalar", include_in_schema=False)
+    async def scalar_html():
+        return HTMLResponse(
+            """
+            <!doctype html>
+            <html>
+              <head>
+                <title>Scalar API Reference</title>
+                <meta charset="utf-8" />
+                <meta
+                  name="viewport"
+                  content="width=device-width, initial-scale=1" />
+              </head>
+              <body>
+                <script
+                  id="api-reference"
+                  data-url="/api/openapi.json"></script>
+                <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+              </body>
+            </html>
+            """
+        )
 
     app.add_middleware(
         SessionMiddleware, secret_key=settings.SESSION_SECRET_KEY, same_site="lax"

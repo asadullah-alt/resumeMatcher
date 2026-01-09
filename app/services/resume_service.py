@@ -205,10 +205,19 @@ class ResumeService:
                     # Do not save ProcessedResume; indicate invalid resume to caller
                     return False
 
+                # Check if this is the user's first ProcessedResume
+                is_first_resume = False
+                if user_id:
+                    existing_resumes_count = await ProcessedResume.find(
+                        ProcessedResume.user_id == str(user_id)
+                    ).count()
+                    is_first_resume = existing_resumes_count == 0
+
                 processed_resume = ProcessedResume(
                     resume_name=resume_name,
                     user_id=str(user_id) if user_id else None,
                     resume_id=resume_id,
+                    default=is_first_resume,  # Set to True if this is the first resume
                     personal_data=structured_resume.get("personal_data"),
                     experiences=structured_resume.get("experiences") or [],
                     projects=structured_resume.get("projects") or [],
@@ -218,7 +227,7 @@ class ResumeService:
                     education=structured_resume.get("education") or [],
                     extracted_keywords=structured_resume.get("extracted_keywords") or [],
                 )
-
+                
                 await processed_resume.insert()
                 return True
             except ResumeValidationError:
@@ -350,11 +359,12 @@ class ResumeService:
 
         return combined_data
 
-    async def get_resume_ids_for_token(self, token: str) -> list[dict[str, str]]:
+    async def get_resume_ids_for_token(self, token: str) -> dict:
         """
-        Returns a list of resume_id strings for the user identified by the given token.
+        Returns a dictionary containing a list of resume_id strings and the default_resume ID 
+        for the user identified by the given token.
 
-        If the user is not found for the token, returns an empty list.
+        If the user is not found for the token, returns empty list and None for default_resume.
         """
         # Find user by token in the same fields used during storage
         user = await self.db.users.find_one({
@@ -367,10 +377,62 @@ class ResumeService:
 
         if not user:
             logger.info(f"No user found for token when fetching resumes: {token}")
-            return []
+            return {"resumes": [], "default_resume": None}
 
         user_id = str(user.get("_id"))
 
         # Query Resume documents for this user_id
         resumes = await ProcessedResume.find(ProcessedResume.user_id == user_id).to_list()
-        return [{"id": r.resume_id, "resume_name": r.resume_name} for r in resumes]
+        
+        # Find the first resume with default=True
+        default_resume = None
+        for r in resumes:
+            if r.default:
+                default_resume = r.resume_id
+                break
+        
+        return {
+            "resumes": [{"id": r.resume_id, "resume_name": r.resume_name} for r in resumes],
+            "default_resume": default_resume
+        }
+
+    async def set_default_resume(self, token: str, resume_id: str) -> bool:
+        """
+        Sets the specified resume as default for the user and unsets others.
+        Returns True if successful, False otherwise.
+        """
+        # Find user by token
+        user = await self.db.users.find_one({
+            "$or": [
+                {"local.token": token},
+                {"google.token": token},
+                {"linkedin.token": token},
+            ]
+        })
+
+        if not user:
+            logger.warning(f"No user found for token when setting default resume: {token}")
+            return False
+
+        user_id = str(user.get("_id"))
+
+        # Verify the resume belongs to the user
+        target_resume = await ProcessedResume.find_one(
+            ProcessedResume.resume_id == resume_id,
+            ProcessedResume.user_id == user_id
+        )
+
+        if not target_resume:
+            logger.warning(f"Resume {resume_id} not found for user {user_id}")
+            return False
+            
+        # Unset default for all other resumes of this user
+        await ProcessedResume.find(
+            ProcessedResume.user_id == user_id
+        ).update({"$set": {"default": False}})
+        
+        # Set the target resume as default
+        target_resume.default = True
+        await target_resume.save()
+        
+        return True

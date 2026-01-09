@@ -89,7 +89,7 @@ class ProcessedResume(Document):
     user_id: str
     resume_name: str
     resume_id: str
-
+    default: bool = False
     personal_data: Optional[PersonalData] = None
     experiences: Optional[List[Experience]] = Field(default_factory=list)
     projects: Optional[List[Project]] = Field(default_factory=list)

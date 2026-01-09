@@ -28,7 +28,7 @@ from app.services import (
     ResumeKeywordExtractionError,
     JobKeywordExtractionError,
 )
-from app.schemas.pydantic import ResumeImprovementRequest
+from app.schemas.pydantic import ResumeImprovementRequest, SetDefaultResumeRequest
 
 resume_router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -411,8 +411,54 @@ async def get_improvements(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching improvement: {str(e)} - traceback: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error fetching improvement data",
+        )
+
+
+@resume_router.post(
+    "/setDefaultResume",
+    summary="Set a resume as default for the user",
+)
+async def set_default_resume(
+    request: Request,
+    payload: SetDefaultResumeRequest,
+    db: Any = Depends(get_db_session),
+):
+    """
+    Sets the specified resume as default for the user identified by the token.
+    All other resumes for this user will have default=False.
+    """
+    request_id = getattr(request.state, "request_id", str(uuid4()))
+    headers = {"X-Request-ID": request_id}
+
+    try:
+        resume_service = ResumeService(db)
+        success = await resume_service.set_default_resume(
+            token=payload.token,
+            resume_id=payload.resume_id
+        )
+
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found or Resume not found/invalid"
+            )
+
+        return JSONResponse(
+            content={
+                "request_id": request_id,
+                "message": "Default resume updated successfully"
+            },
+            headers=headers,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error setting default resume: {str(e)} - traceback: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error setting default resume",
         )
