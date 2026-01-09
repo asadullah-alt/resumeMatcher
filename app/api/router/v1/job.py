@@ -51,7 +51,7 @@ async def upload_job(
         job_service = JobService(db)
         job_ids, is_existing = await job_service.create_and_store_job(payload.model_dump())
         
-        message = "data successfully processed"
+        message = "Job Saved sucessfully! Check your dashboard"
         if is_existing:
             message = "Job already exists"
 
