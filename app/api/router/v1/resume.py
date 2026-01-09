@@ -17,6 +17,7 @@ from fastapi import (
 )
 
 from app.core import get_db_session
+from app.models import ProcessedJob
 from app.services import (
     ResumeService,
     ScoreImprovementService,
@@ -28,7 +29,7 @@ from app.services import (
     ResumeKeywordExtractionError,
     JobKeywordExtractionError,
 )
-from app.schemas.pydantic import ResumeImprovementRequest, SetDefaultResumeRequest
+from app.schemas.pydantic import ResumeImprovementRequest, SetDefaultResumeRequest, ExtensionImprovementRequest
 
 resume_router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -461,4 +462,70 @@ async def set_default_resume(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error setting default resume",
+        )
+
+
+@resume_router.post(
+    "/improveFromExtension",
+    summary="Get improvement for extension request",
+)
+async def improve_from_extension(
+    request: Request,
+    payload: ExtensionImprovementRequest,
+    db: Any = Depends(get_db_session),
+):
+    """
+    Get improvement for extension request by resolving token to user_id and job_url to job_id.
+    """
+    request_id = getattr(request.state, "request_id", str(uuid4()))
+    headers = {"X-Request-ID": request_id}
+
+    try:
+        resume_service = ResumeService(db)
+        user_id = await resume_service.get_user_id_by_token(payload.token)
+        
+        if not user_id:
+             raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+
+        processed_job = await ProcessedJob.find_one(
+            ProcessedJob.user_id == user_id,
+            ProcessedJob.job_url == payload.job_url
+        )
+
+        if not processed_job:
+             raise JobNotFoundError(
+                message="Job not found for this user and url"
+            )
+        
+        job_id = processed_job.job_id
+        resume_id = str(payload.resume_id)
+
+        score_improvement_service = ScoreImprovementService(db=db)
+        
+        # This service method handles "check cache, if missing, generate new" logic
+        improvements = await score_improvement_service.run(
+            resume_id=resume_id,
+            job_id=job_id,
+            analyze_again=False
+        )
+        
+        safe_data = jsonable_encoder(improvements)
+        return JSONResponse(
+            content={
+                "request_id": request_id,
+                "data": safe_data,
+            },
+            headers=headers,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in improveFromExtension: {str(e)} - traceback: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
         )

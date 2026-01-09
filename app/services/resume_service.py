@@ -436,3 +436,21 @@ class ResumeService:
         await target_resume.save()
         
         return True
+
+    async def get_user_id_by_token(self, token: str) -> Optional[str]:
+        """
+        Retrieves the user_id for a given token.
+        Returns None if user is not found.
+        """
+        user = await self.db.users.find_one({
+            "$or": [
+                {"local.token": token},
+                {"google.token": token},
+                {"linkedin.token": token},
+            ]
+        })
+
+        if not user:
+            return None
+
+        return str(user.get("_id"))

@@ -6,6 +6,7 @@ from .structured_resume import StructuredResumeModel
 from .resume_improvement import ResumeImprovementRequest
 from .config import LLMApiKeyResponse, LLMApiKeyUpdate
 from .resume_actions import SetDefaultResumeRequest
+from .extension import ExtensionImprovementRequest
 
 __all__ = [
     "JobUploadRequest",
@@ -13,6 +14,7 @@ __all__ = [
     "StructuredResumeModel",
     "StructuredJobModel",
     "ResumeImprovementRequest",
+    "ExtensionImprovementRequest",
     "ResumeAnalysisModel",
     "LLMApiKeyResponse",
     "LLMApiKeyUpdate",
