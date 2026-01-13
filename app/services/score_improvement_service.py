@@ -535,7 +535,7 @@ class ScoreImprovementService:
             resume_text=updated_resume,
             job_text=job.content,
         )
-        logger.info('Resume Analysis: {resume_analysis}')
+        logger.info(f'Resume Analysis: {resume_analysis}')
         logger.info(f"Resume Preview: {resume_preview}")
 
         execution = {

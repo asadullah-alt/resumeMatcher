@@ -24,7 +24,7 @@ class Improvement(Document):
     job_description: str
     job_keywords: str
     skill_comparison: List[Dict[str, Any]] = Field(default_factory=list)
-    similarity_comparison: Optional[str] = None
+    similarity_comparison: Optional[int] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
