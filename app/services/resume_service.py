@@ -225,6 +225,7 @@ class ResumeService:
                     research_work=structured_resume.get("research_work") or [],
                     achievements=structured_resume.get("achievements") or [],
                     education=structured_resume.get("education") or [],
+                    summary=structured_resume.get("summary"),
                     extracted_keywords=structured_resume.get("extracted_keywords") or [],
                 )
                 
@@ -352,6 +353,7 @@ class ResumeService:
                 ).get("extracted_keywords", [])
                 if processed_resume.extracted_keywords
                 else [],
+                "summary": processed_resume.summary,
                 "processed_at": processed_resume.processed_at.isoformat()
                 if processed_resume.processed_at
                 else None,

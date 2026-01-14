@@ -267,6 +267,7 @@ class ScoreImprovementService:
             existing_improvement.resume_preview = improvement_data["resume_preview"]
             existing_improvement.details = improvement_data["details"]
             existing_improvement.commentary = improvement_data["commentary"]
+            existing_improvement.summary = improvement_data.get("summary", "")
             existing_improvement.improvements = improvement_data["improvements"]
             existing_improvement.original_resume_markdown = improvement_data[
                 "original_resume_markdown"
@@ -295,6 +296,7 @@ class ScoreImprovementService:
                 details=improvement_data["details"],
                 similarity_comparison=improvement_data["similarity_comparison"],
                 commentary=improvement_data["commentary"],
+                summary=improvement_data.get("summary", ""),
                 improvements=improvement_data["improvements"],
                 original_resume_markdown=improvement_data["original_resume_markdown"],
                 updated_resume_markdown=improvement_data["updated_resume_markdown"],
@@ -547,6 +549,7 @@ class ScoreImprovementService:
             "resume_preview": resume_preview,
             "details": resume_analysis.get("details") if resume_analysis else "",
             "commentary": resume_analysis.get("commentary") if resume_analysis else "",
+            "summary": resume_analysis.get("summary") if resume_analysis else "",
             "similarity_comparison": resume_analysis.get("similarity_comparison") if resume_analysis else "",
             "improvements": resume_analysis.get("improvements") if resume_analysis else [],
             "original_resume_markdown": resume.content,
@@ -688,6 +691,7 @@ class ScoreImprovementService:
             "resume_preview": resume_preview,
             "details": resume_analysis.get("details") if resume_analysis else "",
             "commentary": resume_analysis.get("commentary") if resume_analysis else "",
+            "summary": resume_analysis.get("summary") if resume_analysis else "",
             "improvements": resume_analysis.get("improvements") if resume_analysis else [],
             "original_resume_markdown": resume.content,
             "updated_resume_markdown": updated_resume,

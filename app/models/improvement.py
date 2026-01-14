@@ -18,6 +18,7 @@ class Improvement(Document):
     resume_preview: Optional[Dict[str, Any]] = None
     details: str = ""
     commentary: str = ""
+    summary: str = ""
     improvements: List[Dict[str, Any]] = Field(default_factory=list)
     original_resume_markdown: str
     updated_resume_markdown: str

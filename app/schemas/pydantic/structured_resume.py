@@ -71,6 +71,7 @@ class StructuredResumeModel(BaseModel):
     )
     achievements: Optional[List[str]] = Field(default_factory=list, alias="achievements")
     education: List[Education] = Field(default_factory=list, alias="education")
+    summary: Optional[str] = Field(None, alias="summary")
     extracted_keywords: List[str] = Field(
         default_factory=list, alias="extracted_keywords"
     )

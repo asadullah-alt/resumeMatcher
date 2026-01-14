@@ -10,5 +10,6 @@ class ImprovementItem(BaseModel):
 class ResumeAnalysisModel(BaseModel):
     details: str
     commentary: str
+    summary: Optional[str] = None
     improvements: List[ImprovementItem]
     similarity_comparison: Optional[int] = None

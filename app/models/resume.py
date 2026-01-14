@@ -77,6 +77,7 @@ class ImprovedResume(Document):
     research_work: Optional[List[ResearchWork]] = Field(default_factory=list)
     achievements: Optional[List[str]] = Field(default_factory=list)
     education: Optional[List[Education]] = Field(default_factory=list)
+    summary: Optional[str] = None
     extracted_keywords: Optional[List[str]] = Field(default_factory=list)
     processed_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -97,6 +98,7 @@ class ProcessedResume(Document):
     research_work: Optional[List[ResearchWork]] = Field(default_factory=list)
     achievements: Optional[List[str]] = Field(default_factory=list)
     education: Optional[List[Education]] = Field(default_factory=list)
+    summary: Optional[str] = None
     extracted_keywords: Optional[List[str]] = Field(default_factory=list)
 
     processed_at: datetime = Field(default_factory=datetime.utcnow)

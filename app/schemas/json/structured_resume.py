@@ -1,5 +1,6 @@
 SCHEMA = {
     "UUID": "string",
+    "summary": "string",
     "personal_data": {
         "first_name": "string",
         "last_name": "string",
