@@ -533,7 +533,7 @@ async def improve_from_extension(
         if not user_id:
              raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found",
+                detail="User DB: User not found",
             )
         
         # Billing: Get full user object for billing checks
@@ -542,7 +542,7 @@ async def improve_from_extension(
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found",
+                detail="Billing : User not found",
             )
         
         # Billing: Check and reset credits if needed (monthly reset with rollover)
