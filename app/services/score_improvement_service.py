@@ -391,7 +391,7 @@ class ScoreImprovementService:
         """
         prompt_template = prompt_factory.get("structured_resume")
         prompt = prompt_template.format(
-            json.dumps(json_schema_factory.get("resume_preview"), indent=2),
+            json.dumps(json_schema_factory.get("structured_resume"), indent=2),
             updated_resume,
         )
         logger.info(f"Structured Resume Prompt: {prompt}")
