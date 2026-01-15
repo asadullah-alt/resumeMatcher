@@ -62,7 +62,9 @@ class Education(BaseModel):
 
 
 class StructuredResumeModel(BaseModel):
-    personal_data: PersonalData = Field(..., alias="personal_data")
+    personal_data: dict = Field(
+        validation_alias=AliasChoices("personalInfo", "personal_details", "personal_data")
+    )
     experiences: List[Experience] = Field(default_factory=list, alias="experiences")
     projects: Optional[List[Project]] = Field(default_factory=list, alias="projects")
     skills: Optional[List[Skill]] = Field(default_factory=list, alias="skills")
