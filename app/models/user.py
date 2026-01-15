@@ -12,6 +12,7 @@ from app.models.account_type import AccountType
 class LocalAuth(BaseModel):
     email: EmailStr
     password: str
+    token: str
 
 class FacebookAuth(BaseModel):
     id: str
