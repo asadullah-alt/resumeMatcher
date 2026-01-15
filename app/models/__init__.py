@@ -3,6 +3,7 @@ from .user import User
 from .job import ProcessedJob, Job
 from .improvement import Improvement
 from .cover_letter import CoverLetter
+from .account_type import AccountType
 
 __all__ = [
     "Resume",
@@ -12,5 +13,6 @@ __all__ = [
     "Job",
     "Improvement",
     "CoverLetter",
-    "ImprovedResume"
+    "ImprovedResume",
+    "AccountType",
 ]

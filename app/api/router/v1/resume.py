@@ -21,6 +21,8 @@ from app.models import ProcessedJob
 from app.services import (
     ResumeService,
     ScoreImprovementService,
+    BillingService,
+    InsufficientCreditsError,
     ResumeNotFoundError,
     ResumeParsingError,
     ResumeValidationError,
@@ -172,10 +174,54 @@ async def score_and_improve(
             raise JobNotFoundError(
                 message="invalid value passed in `job_id` field, please try again with valid job_id."
             )
+        
+        # Billing: Get user by token
+        token = str(request_payload.get("token", ""))
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Token is required for billing purposes",
+            )
+        
+        billing_service = BillingService()
+        user = await billing_service.get_user_by_token(token)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+        
+        # Billing: Check and reset credits if needed (monthly reset with rollover)
+        user = await billing_service.check_and_reset_credits(user)
+        
+        # Billing: Check if user has credits available
+        if not await billing_service.has_available_credits(user):
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail="All credits used for this month",
+            )
+        
         score_improvement_service = ScoreImprovementService(db=db)
 
         # Read whether the client requested re-analysis or to use cached result
         analysis_again = bool(request_payload.get("analysis_again", False))
+        
+        # Billing: Check if improvement already exists (to determine if we should charge)
+        existing_improvement = await score_improvement_service._get_improvement(
+            resume_id=resume_id,
+            job_id=job_id
+        )
+        
+        # Billing: Consume credit only if generating NEW improvement (not cached)
+        should_charge = (existing_improvement is None) or analysis_again
+        if should_charge:
+            try:
+                await billing_service.consume_credit(user)
+            except InsufficientCreditsError as e:
+                raise HTTPException(
+                    status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                    detail=str(e),
+                )
 
         if stream:
             return StreamingResponse(
@@ -489,6 +535,25 @@ async def improve_from_extension(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found",
             )
+        
+        # Billing: Get full user object for billing checks
+        billing_service = BillingService()
+        user = await billing_service.get_user_by_token(payload.token)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+        
+        # Billing: Check and reset credits if needed (monthly reset with rollover)
+        user = await billing_service.check_and_reset_credits(user)
+        
+        # Billing: Check if user has credits available
+        if not await billing_service.has_available_credits(user):
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail="All credits used for this month",
+            )
 
         processed_job = await ProcessedJob.find_one(
             ProcessedJob.user_id == user_id,
@@ -504,6 +569,24 @@ async def improve_from_extension(
         resume_id = str(payload.resume_id)
 
         score_improvement_service = ScoreImprovementService(db=db)
+        
+        # Billing: Check if improvement already exists (to determine if we should charge)
+        existing_improvement = await score_improvement_service._get_improvement(
+            resume_id=resume_id,
+            job_id=job_id
+        )
+        
+        # Billing: Consume credit only if generating NEW improvement (not cached)
+        # Note: improveFromExtension always uses analyze_again=False
+        should_charge = existing_improvement is None
+        if should_charge:
+            try:
+                await billing_service.consume_credit(user)
+            except InsufficientCreditsError as e:
+                raise HTTPException(
+                    status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                    detail=str(e),
+                )
         
         # This service method handles "check cache, if missing, generate new" logic
         improvements = await score_improvement_service.run(
@@ -529,3 +612,4 @@ async def improve_from_extension(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e),
         )
+

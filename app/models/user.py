@@ -7,6 +7,7 @@ from typing import Optional
 from beanie import Document
 from pydantic import Field, BaseModel, EmailStr
 from app.core.config import settings
+from app.models.account_type import AccountType
 
 class LocalAuth(BaseModel):
     email: EmailStr
@@ -37,7 +38,15 @@ class User(Document):
     linkedin: Optional[LinkedInAuth] = None
     extension_token: Optional[str] = None
     active_resume: Optional[str] = None
+    
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    # Billing fields
+    account_type: AccountType = Field(default=AccountType.JOB_TRACKER)
+    credits_remaining: int = Field(default=5)
+    credits_used_this_period: int = Field(default=0)
+    last_credit_reset: datetime = Field(default_factory=datetime.utcnow)
+    total_credits_lifetime: int = Field(default=0)
 
     async def generate_hash(self, password: str) -> str:
         """Generate a hashed password using bcrypt."""
