@@ -106,7 +106,13 @@ class BillingService:
         Returns:
             User document if found, None otherwise
         """
-        user = await User.find_one(User.extension_token == token)
+        user = await self.db.users.find_one({
+            "$or": [
+                {"local.token": token},
+                {"google.token": token},
+                {"linkedin.token": token},
+            ]
+        })
         return user
     
     async def get_user_by_extension_or_local_token(self, token: str) -> Optional[User]:
