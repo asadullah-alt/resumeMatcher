@@ -106,7 +106,7 @@ class BillingService:
         Returns:
             User document if found, None otherwise
         """
-        user = await self.db.users.find_one({
+        user = await User.find_one({
             "$or": [
                 {"local.token": token},
                 {"google.token": token},
