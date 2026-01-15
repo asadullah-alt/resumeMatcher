@@ -13,7 +13,7 @@ from typing import Dict, Optional, Tuple, AsyncGenerator, List
 from app.prompt import prompt_factory
 from app.services import ResumeService
 from app.schemas.json import json_schema_factory
-from app.schemas.pydantic import ResumePreviewerModel, ResumeAnalysisModel
+from app.schemas.pydantic import ResumePreviewerModel, ResumeAnalysisModel,StructuredResumeModel
 from app.agent import EmbeddingManager, AgentManager
 from app.models import Resume, Job, ProcessedResume, ProcessedJob, ImprovedResume, Improvement
 from fastapi.encoders import jsonable_encoder
@@ -398,7 +398,7 @@ class ScoreImprovementService:
         raw_output = await self.json_agent_manager.run(prompt=prompt)
 
         try:
-            resume_preview: ResumePreviewerModel = ResumePreviewerModel.model_validate(
+            resume_preview: StructuredResumeModel = StructuredResumeModel.model_validate(
                 raw_output
             )
         except ValidationError as e:
