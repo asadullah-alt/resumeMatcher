@@ -16,9 +16,9 @@ class Improvement(Document):
     new_score: float
     updated_resume: str = Field(..., description="HTML formatted updated resume")
     resume_preview: Optional[Dict[str, Any]] = None
-    details: str = ""
-    commentary: str = ""
-    summary: str = ""
+    details: Optional[str] = None
+    commentary: Optional[str] = None
+    summary: Optional[str] = None
     improvements: List[Dict[str, Any]] = Field(default_factory=list)
     original_resume_markdown: str
     updated_resume_markdown: str
