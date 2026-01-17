@@ -7,4 +7,5 @@ class ResumeImprovementRequest(BaseModel):
     resume_id: UUID = Field(..., description="DB UUID reference to the resume")
     analysis_again: bool = Field(
         False, description="Optional DB UUID reference to a prior analysis"
-)
+    )
+    token: str = Field(..., description="User Token")

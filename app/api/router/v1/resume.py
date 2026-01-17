@@ -146,7 +146,7 @@ async def upload_resume(
 )
 async def score_and_improve(
     request: Request,
-    payload: ExtensionImprovementRequest,
+    payload: ResumeImprovementRequest,
     db: Any = Depends(get_db_session),
     stream: bool = Query(
         False, description="Enable streaming response using Server-Sent Events"
