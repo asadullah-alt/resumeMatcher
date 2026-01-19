@@ -340,3 +340,51 @@ class JobService:
             }
         print(combined_data)
         return combined_data
+
+    async def get_job_without_token(self, job_id: str) -> Optional[Dict]:
+        """
+        Fetches both job and processed job data from the database without requiring a token.
+
+        Args:
+            job_id: The ID of the job to retrieve
+
+        Returns:
+            Combined data from both job and processed_job models
+
+        Raises:
+            JobNotFoundError: If the job is not found
+        """
+        job = await Job.find_one({"job_id": job_id})
+
+        if not job:
+            raise JobNotFoundError(job_id=job_id)
+
+        processed_job = await ProcessedJob.find_one({"job_id": job_id})
+
+        combined_data = {
+            "job_id": job.job_id,
+            "raw_job": {
+                "id": str(job.id),
+                "content": job.content,
+                "created_at": job.created_at.isoformat() if job.created_at else None,
+            },
+            "processed_job": None
+        }
+
+        if processed_job:
+            combined_data["processed_job"] = {
+                "jobUrl": processed_job.job_url,
+                "jobPosition": processed_job.job_title,
+                "companyProfile": processed_job.company_profile.model_dump() if processed_job.company_profile else None,
+                "location": processed_job.location.model_dump(),
+                "date_posted": processed_job.date_posted,
+                "employment_type": processed_job.employment_type,
+                "jobSummary": processed_job.job_summary,
+                "keyResponsibilities": processed_job.key_responsibilities,
+                "qualifications": processed_job.qualifications.model_dump(),
+                "compensationAndBenefits": processed_job.compensation_and_benefits,
+                "applicationInfo": processed_job.application_info.model_dump(),
+                "extractedKeywords": processed_job.extracted_keywords,
+                "processed_at": processed_job.processed_at.isoformat() if processed_job.processed_at else None,
+            }
+        return combined_data
