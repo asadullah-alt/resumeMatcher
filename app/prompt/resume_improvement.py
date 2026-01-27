@@ -15,6 +15,7 @@ Instructions:
   - Keep each Additional subsection limited to items explicitly present in the original resume. If a subsection has no content, leave it empty.
   - When a requirement is missing, do not fabricate experience. Instead, highlight adjacent or transferable elements already in the resume and frame them with the job's terminology.
   - Maintain a natural, professional tone and avoid keyword stuffing.
+  - In Experiences show atleast 3 bullets for each job.
   - Where possible, use quantifiable achievements already present in the resume and action verbs to make impact clear.
   - The current cosine similarity score is {current_cosine_similarity:.4f}. Revise the resume using the above constraints to increase this score.
 - ONLY output the improved updated resume. Do not include any explanations, commentary, or formatting outside of the resume itself.

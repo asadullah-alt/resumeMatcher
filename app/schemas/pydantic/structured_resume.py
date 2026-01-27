@@ -1,4 +1,5 @@
 from typing import List, Optional
+from enum import Enum
 from pydantic import BaseModel, Field, AliasChoices
 
 
@@ -61,6 +62,52 @@ class Education(BaseModel):
     description: Optional[str] = None
 
 
+class Publication(BaseModel):
+    title: Optional[str] = None
+    authors: Optional[List[str]] = Field(default_factory=list)
+    publication_venue: Optional[str] = Field(None, alias="publication_venue")
+    date: Optional[str] = None
+    link: Optional[str] = None
+    description: Optional[str] = None
+
+
+class ConferenceType(str, Enum):
+    CONFERENCE = "conference"
+    TRAINING = "training"
+    WORKSHOP = "workshop"
+
+
+class ConferenceTrainingWorkshop(BaseModel):
+    type: Optional[ConferenceType] = None
+    name: Optional[str] = None
+    organizer: Optional[str] = None
+    date: Optional[str] = None
+    location: Optional[str] = None
+    description: Optional[str] = None
+    certificate_link: Optional[str] = Field(None, alias="certificate_link")
+
+
+class Award(BaseModel):
+    title: Optional[str] = None
+    issuer: Optional[str] = None
+    date: Optional[str] = None
+    description: Optional[str] = None
+
+
+class ExtracurricularActivity(BaseModel):
+    activity_name: Optional[str] = Field(None, alias="activity_name")
+    role: Optional[str] = None
+    organization: Optional[str] = None
+    start_date: Optional[str] = Field(None, alias="start_date")
+    end_date: Optional[str] = Field(None, alias="end_date")
+    description: Optional[str] = None
+
+
+class Language(BaseModel):
+    language: Optional[str] = None
+    proficiency: Optional[str] = None
+
+
 class StructuredResumeModel(BaseModel):
     personal_data: dict = Field(
         validation_alias=AliasChoices("personalInfo", "personal_details", "personal_data")
@@ -73,6 +120,15 @@ class StructuredResumeModel(BaseModel):
     )
     achievements: Optional[List[str]] = Field(default_factory=list, alias="achievements")
     education: List[Education] = Field(default_factory=list, alias="education")
+    publications: Optional[List[Publication]] = Field(default_factory=list, alias="publications")
+    conferences_trainings_workshops: Optional[List[ConferenceTrainingWorkshop]] = Field(
+        default_factory=list, alias="conferences_trainings_workshops"
+    )
+    awards: Optional[List[Award]] = Field(default_factory=list, alias="awards")
+    extracurricular_activities: Optional[List[ExtracurricularActivity]] = Field(
+        default_factory=list, alias="extracurricular_activities"
+    )
+    languages: Optional[List[Language]] = Field(default_factory=list, alias="languages")
     summary: Optional[str] = Field(None, alias="summary")
     extracted_keywords: List[str] = Field(
         default_factory=list, alias="extracted_keywords"

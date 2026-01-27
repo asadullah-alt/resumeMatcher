@@ -225,6 +225,11 @@ class ResumeService:
                     research_work=structured_resume.get("research_work") or [],
                     achievements=structured_resume.get("achievements") or [],
                     education=structured_resume.get("education") or [],
+                    publications=structured_resume.get("publications") or [],
+                    conferences_trainings_workshops=structured_resume.get("conferences_trainings_workshops") or [],
+                    awards=structured_resume.get("awards") or [],
+                    extracurricular_activities=structured_resume.get("extracurricular_activities") or [],
+                    languages=structured_resume.get("languages") or [],
                     summary=structured_resume.get("summary"),
                     extracted_keywords=structured_resume.get("extracted_keywords") or [],
                 )
@@ -347,6 +352,25 @@ class ResumeService:
                 else [],
                 "education": json.loads(processed_resume.education).get("education", [])
                 if processed_resume.education
+                else [],
+                "publications": json.loads(processed_resume.publications).get("publications", [])
+                if processed_resume.publications
+                else [],
+                "conferences_trainings_workshops": json.loads(processed_resume.conferences_trainings_workshops).get(
+                    "conferences_trainings_workshops", []
+                )
+                if processed_resume.conferences_trainings_workshops
+                else [],
+                "awards": json.loads(processed_resume.awards).get("awards", [])
+                if processed_resume.awards
+                else [],
+                "extracurricular_activities": json.loads(processed_resume.extracurricular_activities).get(
+                    "extracurricular_activities", []
+                )
+                if processed_resume.extracurricular_activities
+                else [],
+                "languages": json.loads(processed_resume.languages).get("languages", [])
+                if processed_resume.languages
                 else [],
                 "extracted_keywords": json.loads(
                     processed_resume.extracted_keywords

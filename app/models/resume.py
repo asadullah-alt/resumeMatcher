@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Optional, List
+from enum import Enum
 
 from beanie import Document
 from pydantic import BaseModel, Field, ConfigDict
@@ -63,6 +64,53 @@ class Education(BaseModel):
     grade: Optional[str] = None
     description: Optional[str] = None
 
+
+class Publication(BaseModel):
+    title: Optional[str] = None
+    authors: Optional[List[str]] = Field(default_factory=list)
+    publication_venue: Optional[str] = Field(None, alias="publication_venue")
+    date: Optional[str] = None
+    link: Optional[str] = None
+    description: Optional[str] = None
+
+
+class Language(BaseModel):
+    language: Optional[str] = None
+    proficiency: Optional[str] = None
+
+
+class ConferenceType(str, Enum):
+    CONFERENCE = "conference"
+    TRAINING = "training"
+    WORKSHOP = "workshop"
+
+
+class ConferenceTrainingWorkshop(BaseModel):
+    type: Optional[ConferenceType] = None
+    name: Optional[str] = None
+    organizer: Optional[str] = None
+    date: Optional[str] = None
+    location: Optional[str] = None
+    description: Optional[str] = None
+    certificate_link: Optional[str] = Field(None, alias="certificate_link")
+
+
+class Award(BaseModel):
+    title: Optional[str] = None
+    issuer: Optional[str] = None
+    date: Optional[str] = None
+    description: Optional[str] = None
+
+
+class ExtracurricularActivity(BaseModel):
+    activity_name: Optional[str] = Field(None, alias="activity_name")
+    role: Optional[str] = None
+    organization: Optional[str] = None
+    start_date: Optional[str] = Field(None, alias="start_date")
+    end_date: Optional[str] = Field(None, alias="end_date")
+    description: Optional[str] = None
+
+
 class ImprovedResume(Document):
     """Improved resume stored as a Beanie Document with structured fields."""
   
@@ -77,6 +125,11 @@ class ImprovedResume(Document):
     research_work: Optional[List[ResearchWork]] = Field(default_factory=list)
     achievements: Optional[List[str]] = Field(default_factory=list)
     education: Optional[List[Education]] = Field(default_factory=list)
+    publications: Optional[List[Publication]] = Field(default_factory=list)
+    conferences_trainings_workshops: Optional[List[ConferenceTrainingWorkshop]] = Field(default_factory=list)
+    awards: Optional[List[Award]] = Field(default_factory=list)
+    extracurricular_activities: Optional[List[ExtracurricularActivity]] = Field(default_factory=list)
+    languages: Optional[List[Language]] = Field(default_factory=list)
     summary: Optional[str] = None
     extracted_keywords: Optional[List[str]] = Field(default_factory=list)
     processed_at: datetime = Field(default_factory=datetime.utcnow)
@@ -98,6 +151,11 @@ class ProcessedResume(Document):
     research_work: Optional[List[ResearchWork]] = Field(default_factory=list)
     achievements: Optional[List[str]] = Field(default_factory=list)
     education: Optional[List[Education]] = Field(default_factory=list)
+    publications: Optional[List[Publication]] = Field(default_factory=list)
+    conferences_trainings_workshops: Optional[List[ConferenceTrainingWorkshop]] = Field(default_factory=list)
+    awards: Optional[List[Award]] = Field(default_factory=list)
+    extracurricular_activities: Optional[List[ExtracurricularActivity]] = Field(default_factory=list)
+    languages: Optional[List[Language]] = Field(default_factory=list)
     summary: Optional[str] = None
     extracted_keywords: Optional[List[str]] = Field(default_factory=list)
 

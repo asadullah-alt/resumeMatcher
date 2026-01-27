@@ -53,5 +53,50 @@ SCHEMA = {
             "description": "string",
         }
     ],
+    "publications": [
+        {
+            "title": "string | null",
+            "authors": ["string", "..."],
+            "publication_venue": "string | null",
+            "date": "YYYY-MM-DD | null",
+            "link": "string | null",
+            "description": "string | null",
+        }
+    ],
+    "conferences_trainings_workshops": [
+        {
+            "type": "conference | training | workshop",
+            "name": "string | null",
+            "organizer": "string | null",
+            "date": "YYYY-MM-DD | null",
+            "location": "string | null",
+            "description": "string | null",
+            "certificate_link": "string | null",
+        }
+    ],
+    "awards": [
+        {
+            "title": "string | null",
+            "issuer": "string | null",
+            "date": "YYYY-MM-DD | null",
+            "description": "string | null",
+        }
+    ],
+    "extracurricular_activities": [
+        {
+            "activity_name": "string | null",
+            "role": "string | null",
+            "organization": "string | null",
+            "start_date": "YYYY-MM-DD | null",
+            "end_date": "YYYY-MM-DD | null",
+            "description": "string | null",
+        }
+    ],
+    "languages": [
+        {
+            "language": "string | null",
+            "proficiency": "string | null",
+        }
+    ],
     "extracted_keywords": ["string", "..."],
 }
