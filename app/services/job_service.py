@@ -338,7 +338,7 @@ class JobService:
                 "extractedKeywords": processed_job.extracted_keywords,
                 "processed_at": processed_job.processed_at.isoformat() if processed_job.processed_at else None,
             }
-        print(combined_data)
+        
         return combined_data
 
     async def get_job_without_token(self, job_id: str) -> Optional[Dict]:
