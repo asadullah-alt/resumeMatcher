@@ -89,7 +89,15 @@ class CoverLetterService:
             # Generate
             logger.info("Generating cover letter...")
             cover_letter_content = await self.agent_manager.run(prompt=prompt)
-            logger.info(f"###########cover_letter_content: {cover_letter_content}") 
+            
+            # Clean up markdown markers if they exist
+            # Order matters: more specific/longer markers first
+            markers = ["```markdown", "```md", "```", "``````"]
+            for marker in markers:
+                cover_letter_content = cover_letter_content.replace(marker, "")
+            cover_letter_content = cover_letter_content.strip()
+
+            logger.info(f"###########cover_letter_content (cleaned): {cover_letter_content}") 
             # Save to DB
             cover_letter = CoverLetter(
                 user_id=user_id,
