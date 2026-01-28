@@ -41,16 +41,14 @@ class CoverLetterService:
         Saves the generated cover letter to the database.
         """
         user_id = await self._verify_token_and_get_user_id(token)
-        logger.info(f"###########User id: {user_id}")
-        logger.info(f"###########Resume id: {resume_id}")
-        logger.info(f"###########Job id: {job_id}") 
+       
         # Check if cover letter already exists
         try:
             try:
                 existing_cover_letter = await CoverLetter.find_one(
                     CoverLetter.job_id == job_id                
                 )
-                logger.info(f"###########Existing cover letter: {existing_cover_letter}")
+                
                 if existing_cover_letter:
                     return existing_cover_letter.content
             except Exception as e:
@@ -58,7 +56,7 @@ class CoverLetterService:
                 raise
             
             # Fetch Resume
-            logger.info(f"###########Resume id: {resume_id}")
+            
             resume = await Resume.find_one(
                 Resume.resume_id == resume_id,
                 Resume.user_id == user_id
@@ -91,7 +89,7 @@ class CoverLetterService:
             # Generate
             logger.info("Generating cover letter...")
             cover_letter_content = await self.agent_manager.run(prompt=prompt)
-            
+            logger.info(f"###########cover_letter_content: {cover_letter_content}") 
             # Save to DB
             cover_letter = CoverLetter(
                 user_id=user_id,
