@@ -411,7 +411,7 @@ class JobService:
             "job_id": job.job_id,
             "raw_job": {
                 "id": str(job.id),
-                "content": job.content,
+                
                 "raw_content": job.raw_content,
                 "created_at": job.created_at.isoformat() if job.created_at else None,
                 "job_url": job.job_url,
