@@ -156,7 +156,7 @@ class JobService:
 
         job_description = self.clean_html_body(job_description_raw)
         job_id = str(uuid.uuid4())
-        job = Job(job_id=job_id,user_id=user_id,content=job_description,job_url=job_url)
+        job = Job(job_id=job_id,user_id=user_id,content=job_description,job_url=job_url,raw_content=job_description_raw)
         await job.insert()
         await self._extract_and_store_structured_job(job_id=job_id,user_id=user_id,job_description_text=job_description,job_url=job_url)
         return job_id, False

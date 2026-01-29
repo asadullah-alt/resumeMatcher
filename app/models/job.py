@@ -157,5 +157,6 @@ class Job(Document):
     user_id: str
     job_id: str
     content: str
+    raw_content: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
