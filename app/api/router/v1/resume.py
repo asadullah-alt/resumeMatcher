@@ -562,7 +562,7 @@ async def improve_from_extension(
 
         if not processed_job:
              raise JobNotFoundError(
-                detail="Job not found for this user and url"
+                message="Job not found for this user and url"
             )
         
         job_id = processed_job.job_id
@@ -606,18 +606,16 @@ async def improve_from_extension(
 
     except HTTPException:
         raise   
-    except JobNotFoundError:
-        raise       
-    except Exception as e:
-        logger.error(f"Error in improveFromExtension: {str(e)} - traceback: {traceback.format_exc()}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
-        )
     except JobNotFoundError as e:
         logger.error(f"Error in improveFromExtension: {str(e)} - traceback: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_202_ACCEPTED,
             detail="Job not found"
+        )
+    except Exception as e:
+        logger.error(f"Error in improveFromExtension: {str(e)} - traceback: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
         )
 
