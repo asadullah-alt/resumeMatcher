@@ -205,3 +205,59 @@ async def open_job(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error fetching job data",
         )
+
+@job_router.get(
+    "/{job_id}",
+    summary="Get job data by ID via path parameter",
+)
+async def get_job_by_path_id(
+    request: Request,
+    job_id: str,
+    db: Any = Depends(get_db_session),
+):
+    """
+    Retrieves job data by job_id via path parameter without requiring a token.
+
+    Args:
+        job_id: The ID of the job to retrieve
+
+    Returns:
+        Job document data
+
+    Raises:
+        HTTPException: If the job is not found or if there's an error fetching data.
+    """
+    request_id = getattr(request.state, "request_id", str(uuid4()))
+    headers = {"X-Request-ID": request_id}
+
+    try:
+        job_service = JobService(db)
+        job_data = await job_service.get_job_with_id(
+            job_id=job_id
+        )
+        
+        if not job_data:
+            raise JobNotFoundError(
+                message=f"Job with id {job_id} not found"
+            )
+
+        return JSONResponse(
+            content={
+                "request_id": request_id,
+                "data": job_data,
+            },
+            headers=headers,
+        )
+    
+    except JobNotFoundError as e:
+        logger.error(str(e))
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except Exception as e:
+        logger.error(f"Error fetching job by path ID: {str(e)} - traceback: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error fetching job data",
+        )

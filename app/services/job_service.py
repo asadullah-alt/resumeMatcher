@@ -388,3 +388,31 @@ class JobService:
                 "processed_at": processed_job.processed_at.isoformat() if processed_job.processed_at else None,
             }
         return combined_data
+
+    async def get_job_with_id(self, job_id: str) -> Optional[Dict]:
+        """
+        Fetches only the job data from the database without requiring a token.
+
+        Args:
+            job_id: The ID of the job to retrieve
+
+        Returns:
+            Job document data
+
+        Raises:
+            JobNotFoundError: If the job is not found
+        """
+        job = await Job.find_one({"job_url": job_id})
+
+        if not job:
+            raise JobNotFoundError(job_id=job_id)
+
+        return {
+            "job_id": job.job_id,
+            "raw_job": {
+                "id": str(job.id),
+                "content": job.content,
+                "created_at": job.created_at.isoformat() if job.created_at else None,
+                "job_url": job.job_url,
+            }
+        }
