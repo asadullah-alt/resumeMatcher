@@ -615,6 +615,7 @@ async def improve_from_extension(
             detail=str(e),
         )
     except JobNotFoundError as e:
+        logger.error(f"Error in improveFromExtension: {str(e)} - traceback: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_202_ACCEPTED,
             detail="Job not found"
