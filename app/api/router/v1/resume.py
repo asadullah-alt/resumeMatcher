@@ -616,7 +616,7 @@ async def improve_from_extension(
         )
     except JobNotFoundError as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
+            status_code=status.HTTP_202_ACCEPTED,
+            detail="Job not found"
         )
 
