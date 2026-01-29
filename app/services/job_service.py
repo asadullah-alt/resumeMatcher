@@ -389,12 +389,12 @@ class JobService:
             }
         return combined_data
 
-    async def get_job_with_id(self, job_id: str) -> Optional[Dict]:
+    async def get_job_by_url(self, job_url: str) -> Optional[Dict]:
         """
-        Fetches only the job data from the database without requiring a token.
+        Fetches only the job data from the database using job_url.
 
         Args:
-            job_id: The ID of the job to retrieve
+            job_url: The URL of the job to retrieve
 
         Returns:
             Job document data
@@ -402,10 +402,10 @@ class JobService:
         Raises:
             JobNotFoundError: If the job is not found
         """
-        job = await Job.find_one({"job_url": job_id})
+        job = await Job.find_one({"job_url": job_url})
 
         if not job:
-            raise JobNotFoundError(job_id=job_id)
+            raise JobNotFoundError(job_id=job_url)
 
         return {
             "job_id": job.job_id,

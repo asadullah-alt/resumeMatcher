@@ -7,3 +7,7 @@ class JobUploadRequest(BaseModel):
     job_descriptions: str
     job_url: str
     token: str
+
+
+class JobGetRequest(BaseModel):
+    job_url: str

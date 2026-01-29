@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 
 from app.core import get_db_session
 from app.services import JobService, JobNotFoundError
-from app.schemas.pydantic.job import JobUploadRequest
+from app.schemas.pydantic.job import JobUploadRequest, JobGetRequest
 
 job_router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -206,20 +206,20 @@ async def open_job(
             detail="Error fetching job data",
         )
 
-@job_router.get(
-    "/{job_id}",
-    summary="Get job data by ID via path parameter",
+@job_router.post(
+    "",
+    summary="Get job data by URL via POST body",
 )
-async def get_job_by_path_id(
+async def get_job_by_url(
     request: Request,
-    job_id: str,
+    payload: JobGetRequest,
     db: Any = Depends(get_db_session),
 ):
     """
-    Retrieves job data by job_id via path parameter without requiring a token.
+    Retrieves job data by job_url via POST body without requiring a token.
 
     Args:
-        job_id: The ID of the job to retrieve
+        payload: The request body containing job_url
 
     Returns:
         Job document data
@@ -232,13 +232,13 @@ async def get_job_by_path_id(
 
     try:
         job_service = JobService(db)
-        job_data = await job_service.get_job_with_id(
-            job_id=job_id
+        job_data = await job_service.get_job_by_url(
+            job_url=payload.job_url
         )
         
         if not job_data:
             raise JobNotFoundError(
-                message=f"Job with id {job_id} not found"
+                message=f"Job with URL {payload.job_url} not found"
             )
 
         return JSONResponse(
@@ -256,7 +256,7 @@ async def get_job_by_path_id(
             detail=str(e),
         )
     except Exception as e:
-        logger.error(f"Error fetching job by path ID: {str(e)} - traceback: {traceback.format_exc()}")
+        logger.error(f"Error fetching job by URL: {str(e)} - traceback: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error fetching job data",
