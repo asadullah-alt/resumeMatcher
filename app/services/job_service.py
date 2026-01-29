@@ -20,89 +20,73 @@ class JobService:
         # keep db param for compatibility; Beanie document models used directly
         self.db = db
         self.json_agent_manager = AgentManager()
-    def clean_html_body(self,html_string):
-        """
-        Extracts text content from an HTML string, preserving line breaks 
-        and whitespace to mimic copying from a web browser.
-
-        The process focuses only on the content within the <body> tag (if present),
-        and completely removes scripts, styles, iframes, SVGs, and links (<a>).
-        Block elements are separated by two newlines (\n\n). <br> tags result 
-        in a single newline (\n).
-
-        Args:
-            html_string (str): The HTML string to extract text from.
-
-        Returns:
-            str: The extracted text with preserved formatting, stripped of 
-                excessive leading/trailing whitespace.
-        """
-        try:
+   
+def clean_html_body(html_string):
+       try:
             # 1. Parse the HTML string
-            soup = BeautifulSoup(html_string, 'html.parser')
+           soup = BeautifulSoup(html_string, 'html.parser')
 
             # 2. Scope to Body: Look only in the body tag. If not found, use the entire soup.
-            body_tag = soup.find('body')
-            target_content = body_tag if body_tag else soup
+           body_tag = soup.find('body')
+           target_content = body_tag if body_tag else soup
             
             # 3. Define tags that should introduce a specific amount of spacing
 
             # Tags that usually represent a paragraph or section break (two newlines)
-            MAJOR_BLOCK_TAGS = [
+           MAJOR_BLOCK_TAGS = [
                 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
                 'div', 'section', 'article', 'aside', 'main', 'nav', 'header', 'footer',
                 'li', 'ul', 'ol', 'blockquote', 'table', 'tr', 'form', 
                 'fieldset', 'legend', 'dt', 'dd', 'address', 'pre'
-            ]
+           ]
             
             # Tags that usually represent a single line break
-            LINE_BREAK_TAGS = ['br']
+           LINE_BREAK_TAGS = ['br']
 
             # 4. Explicitly remove unwanted tags (scripts, svgs, iframes, links, styles)
             # This ensures their content is completely excluded from the result.
-            tags_to_remove_completely = ['script', 'svg', 'iframe', 'style', 'a']
-            for tag_name in tags_to_remove_completely:
-                for tag in target_content.find_all(tag_name):
-                    # Use .extract() to remove the tag and its contents
-                    tag.extract()
+           tags_to_remove_completely = ['script', 'svg', 'iframe', 'style', 'a']
+           for tag_name in tags_to_remove_completely:
+               for tag in target_content.find_all(tag_name):
+                   # Use .extract() to remove the tag and its contents
+                   tag.extract()
                     
             # 5. Insert two newlines before and after major block elements.
-            for tag_name in MAJOR_BLOCK_TAGS:
-                for tag in target_content.find_all(tag_name):
-                    # Insert two newlines before the tag (simulates top margin/break)
-                    tag.insert_before('\n\n')
+           for tag_name in MAJOR_BLOCK_TAGS:
+               for tag in target_content.find_all(tag_name):
+                   # Insert two newlines before the tag (simulates top margin/break)
+                   tag.insert_before('\n\n')
                     
-                    # Append two newlines if it's a general block element.
-                    # Skip list items/table rows as they are usually contained by the next break.
-                    if tag_name not in ['li', 'tr', 'dt', 'dd']:
-                        tag.append('\n\n')
-
+                   # Append two newlines if it's a general block element.
+                   # Skip list items/table rows as they are usually contained by the next break.
+                   if tag_name not in ['li', 'tr', 'dt', 'dd']:
+                       tag.append('\n\n')
             # 6. Replace <br> tags with a single newline.
-            for br_tag in target_content.find_all(LINE_BREAK_TAGS):
-                br_tag.replace_with('\n')
+           for br_tag in target_content.find_all(LINE_BREAK_TAGS):
+               br_tag.replace_with('\n')
 
             # 7. Final Text Extraction: get all text content, preserving injected newlines
             # Use get_text() on the target_content (body or soup).
-            text_content = target_content.get_text(strip=False)
+           text_content = target_content.get_text(strip=False)
             
             # 8. Post-processing to clean up redundant whitespace
 
+            # 0. Handle literal newlines (escaped \n) which might be present in the text
+           text_content = text_content.replace('\\n', '\n')
+
             # A. Normalize all newline combinations to just \n
-            text_content = text_content.replace('\r\n', '\n').replace('\r', '\n')
+           text_content = text_content.replace('\r\n', '\n').replace('\r', '\n')
             
-            # B. Collapse multiple consecutive newlines into at most two (paragraph break)
-            text_content = re.sub(r'\n{3,}', '\n\n', text_content)
+            # B. Final reconstruction: Split by newline and remove lines that are only whitespace
+           lines = text_content.split('\n')
+           cleaned_lines = [line.strip() for line in lines if line.strip()]
+           text_content = '\n'.join(cleaned_lines)
 
-            # C. Remove spaces/tabs immediately adjacent to newlines 
-            text_content = re.sub(r'[ \t]+\n', '\n', text_content)
-            text_content = re.sub(r'\n[ \t]+', '\n', text_content)
-            
-            # D. Strip leading/trailing whitespace from the entire result
-            return text_content.strip()
+           return text_content
 
-        except Exception as e:
-            # Simple error handling
-            return f"An error occurred during parsing: {e}"
+       except Exception as e:
+           # Simple error handling
+           return f"An error occurred during parsing: {e}"
     async def _verify_token_and_get_user_id(self, token: str) -> str:
         """
         Verify the token and return the associated user_id.
