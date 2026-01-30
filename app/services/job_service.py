@@ -326,29 +326,14 @@ class JobService:
         return combined_data
 
     async def get_job_without_token(self, job_id: str) -> Optional[Dict]:
-        """
-        Fetches both job and processed job data from the database without requiring a token.
-
-        Args:
-            job_id: The ID of the job to retrieve
-
-        Returns:
-            Combined data from both job and processed_job models
-
-        Raises:
-            JobNotFoundError: If the job is not found
-        """
-        # job = await Job.find_one({"job_id": job_id})
-
-        # if not job:
-        #     raise JobNotFoundError(job_id=job_id)
+      
 
         processed_job = await ProcessedJob.find_one({"job_id": job_id})
         if not processed_job:
             raise JobNotFoundError(job_id=job_id)
 
         combined_data = {
-            "job_id": job.job_id,
+            "job_id": processed_job.job_id,
             "processed_job": None
         }
 
