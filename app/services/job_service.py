@@ -338,20 +338,17 @@ class JobService:
         Raises:
             JobNotFoundError: If the job is not found
         """
-        job = await Job.find_one({"job_id": job_id})
+        # job = await Job.find_one({"job_id": job_id})
 
-        if not job:
-            raise JobNotFoundError(job_id=job_id)
+        # if not job:
+        #     raise JobNotFoundError(job_id=job_id)
 
         processed_job = await ProcessedJob.find_one({"job_id": job_id})
+        if not processed_job:
+            raise JobNotFoundError(job_id=job_id)
 
         combined_data = {
             "job_id": job.job_id,
-            "raw_job": {
-                "id": str(job.id),
-                "content": job.content,
-                "created_at": job.created_at.isoformat() if job.created_at else None,
-            },
             "processed_job": None
         }
 
