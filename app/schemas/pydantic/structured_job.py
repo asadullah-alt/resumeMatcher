@@ -87,9 +87,9 @@ class CompensationAndBenefits(BaseModel):
 
 
 class ApplicationInfo(BaseModel):
-    how_to_apply: Optional[str] = Field(..., alias="howToApply")
-    apply_link: Optional[str] = Field(..., alias="applyLink")
-    contact_email: Optional[str] = Field(..., alias="contactEmail")
+    how_to_apply: Optional[str] = Field(None, alias="howToApply")
+    apply_link: Optional[str] = Field(None, alias="applyLink")
+    contact_email: Optional[str] = Field(None, alias="contactEmail")
 
 
 class StructuredJobModel(BaseModel):
