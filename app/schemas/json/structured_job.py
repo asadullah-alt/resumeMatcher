@@ -48,4 +48,6 @@ SCHEMA = {
         "string",
         "...",
     ],
+    "isVisaSponsored": "true | false",
+    "isRemote": "true | false",
 }

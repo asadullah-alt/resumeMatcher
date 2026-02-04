@@ -106,6 +106,8 @@ class StructuredJobModel(BaseModel):
     )
     application_info: Optional[ApplicationInfo] = Field(None, alias="applicationInfo")
     extracted_keywords: List[str] = Field(..., alias="extractedKeywords")
+    is_visa_sponsored: Optional[bool] = Field(None, alias="isVisaSponsored")
+    is_remote: Optional[bool] = Field(None, alias="isRemote")
 
     class ConfigDict:
         validate_by_name = True

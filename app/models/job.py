@@ -131,6 +131,8 @@ class ProcessedJob(Document):
     )
     application_info: Optional[ApplicationInfo] = Field(None, alias="applicationInfo")
     extracted_keywords: Optional[List[str]] = Field(None, alias="extractedKeywords")
+    is_visa_sponsored: Optional[bool] = Field(None, alias="isVisaSponsored")
+    is_remote: Optional[bool] = Field(None, alias="isRemote")
     
     # Metadata fields
     processed_at: datetime = Field(default_factory=datetime.utcnow)
