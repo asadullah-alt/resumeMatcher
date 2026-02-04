@@ -182,6 +182,8 @@ class JobService:
             qualifications=structured_job.get("qualifications"),
             compensation_and_benfits=structured_job.get("compensation_and_benfits"),
             application_info=structured_job.get("application_info"),
+            is_visa_sponsored=structured_job.get("is_visa_sponsored", None),
+            is_remote=structured_job.get("is_remote", None),  
         )
         # Cleaning: ensure extracted_keywords is a list. Some LLM outputs wrap the
         # keywords in a nested JSON string/object like:
