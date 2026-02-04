@@ -352,6 +352,8 @@ class JobService:
                 "qualifications": processed_job.qualifications.model_dump(),
                 "compensationAndBenefits": processed_job.compensation_and_benefits,
                 "applicationInfo": processed_job.application_info.model_dump(),
+                "isVisaSponsored": processed_job.is_visa_sponsored,
+                "isRemote": processed_job.is_remote,
                 "extractedKeywords": processed_job.extracted_keywords,
                 "processed_at": processed_job.processed_at.isoformat() if processed_job.processed_at else None,
             }
