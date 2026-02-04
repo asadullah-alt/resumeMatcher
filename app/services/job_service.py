@@ -317,6 +317,8 @@ class JobService:
                 "date_posted": processed_job.date_posted,
                 "employment_type": processed_job.employment_type,
                 "jobSummary": processed_job.job_summary,
+                "isVisaSponsored": processed_job.is_visa_sponsored,
+                "isRemote": processed_job.is_remote,
                 "keyResponsibilities": processed_job.key_responsibilities,
                 "qualifications": processed_job.qualifications.model_dump(),
                 "compensationAndBenefits": processed_job.compensation_and_benefits,
