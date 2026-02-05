@@ -45,7 +45,7 @@ class JobService:
 
             # 4. Explicitly remove unwanted tags (scripts, svgs, iframes, links, styles)
             # This ensures their content is completely excluded from the result.
-            tags_to_remove_completely = ['script', 'svg', 'iframe', 'style', 'a']
+            tags_to_remove_completely = ['script', 'svg', 'iframe', 'style', 'a','code']
             for tag_name in tags_to_remove_completely:
                 for tag in target_content.find_all(tag_name):
                     # Use .extract() to remove the tag and its contents
