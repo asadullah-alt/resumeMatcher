@@ -432,7 +432,7 @@ class ScoreImprovementService:
         )
 
         raw_output = await self.json_agent_manager.run(prompt=prompt)
-
+        logger.info(f"Resume raw output: {raw_output}")
         try:
             analysis = ResumeAnalysisModel.model_validate(raw_output)
         except ValidationError as e:
