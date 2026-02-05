@@ -76,10 +76,16 @@ class ScoreImprovementService:
             return []
         resume_norm = cls._prepare_text_for_matching(resume_text)
         job_norm = cls._prepare_text_for_matching(job_text)
+        
+        # Pre-compile all regex patterns for better performance
+        patterns = {
+            kw: re.compile(rf"(?<!\w){re.escape(kw.lower())}(?!\w)")
+            for kw in keywords
+        }
+        
         stats: List[Dict[str, int | str]] = []
         for keyword in keywords:
-            kw_lower = keyword.lower()
-            pattern = re.compile(rf"(?<!\w){re.escape(kw_lower)}(?!\w)")
+            pattern = patterns[keyword]
             resume_mentions = len(pattern.findall(resume_norm))
             job_mentions = len(pattern.findall(job_norm))
             stats.append(
@@ -466,8 +472,12 @@ class ScoreImprovementService:
                 # jsonable_encoder to convert them to serializable types (str/ISO).
                 return jsonable_encoder(existing_improvement.model_dump())
 
-        resume, processed_resume = await self._get_resume(resume_id)
-        job, processed_job = await self._get_job(job_id)
+        # Parallelize database fetches for better performance
+        resume_task = asyncio.create_task(self._get_resume(resume_id))
+        job_task = asyncio.create_task(self._get_job(job_id))
+        (resume, processed_resume), (job, processed_job) = await asyncio.gather(
+            resume_task, job_task
+        )
 
         # extracted_keywords is now a list, not a JSON string
         job_keywords_raw = processed_job.extracted_keywords or []
@@ -518,18 +528,24 @@ class ScoreImprovementService:
             skill_priority_text=skill_priority_text,
         )
 
-        resume_preview = await self.get_resume_for_previewer(
-            updated_resume=updated_resume
+        # Parallelize LLM calls for better performance
+        resume_preview_task = asyncio.create_task(
+            self.get_resume_for_previewer(updated_resume=updated_resume)
         )
-
-        resume_analysis = await self.get_resume_analysis(
-            original_resume=resume.content,
-            improved_resume=updated_resume,
-            job_description=job.content,
-            extracted_job_keywords=extracted_job_keywords,
-            extracted_resume_keywords=extracted_resume_keywords,
-            original_score=cosine_similarity_score,
-            new_score=updated_score,
+        resume_analysis_task = asyncio.create_task(
+            self.get_resume_analysis(
+                original_resume=resume.content,
+                improved_resume=updated_resume,
+                job_description=job.content,
+                extracted_job_keywords=extracted_job_keywords,
+                extracted_resume_keywords=extracted_resume_keywords,
+                original_score=cosine_similarity_score,
+                new_score=updated_score,
+            )
+        )
+        
+        resume_preview, resume_analysis = await asyncio.gather(
+            resume_preview_task, resume_analysis_task
         )
 
         skill_comparison = self._build_skill_comparison(
@@ -562,7 +578,7 @@ class ScoreImprovementService:
         # Save the improvement to the database
         await self._save_improvement(resume_id, job_id, execution)
 
-        gc.collect()
+        # Removed gc.collect() - Python's GC is sufficient for this use case
 
         return execution
 
