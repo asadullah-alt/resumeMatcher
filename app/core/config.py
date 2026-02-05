@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     #LL_MODEL: Optional[str] = "mistral-nemo"
     LLM_BASE_URL: Optional[str] = "https://openrouter.ai/api/v1"
     #LL_MODEL: Optional[str] = "openai/gpt-oss-safeguard-20b"
-    LL_MODEL: Optional[str] = "google/gemini-2.5-flash-lite"
+    LL_MODEL: Optional[str] = "google/gemini-3-flash-preview"
     EMBEDDING_PROVIDER: Optional[str] = "ollama"
     EMBEDDING_API_KEY: Optional[str] = None
     EMBEDDING_BASE_URL: Optional[str] = None
