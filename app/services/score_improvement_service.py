@@ -692,6 +692,7 @@ class ScoreImprovementService:
             "details": resume_analysis.get("details") if resume_analysis else "",
             "commentary": resume_analysis.get("commentary") if resume_analysis else "",
             "summary": (resume_analysis.get("summary") or "") if resume_analysis else "",
+            "similarity_comparison": resume_analysis.get("similarity_comparison" or "") if resume_analysis else "",
             "improvements": resume_analysis.get("improvements") if resume_analysis else [],
             "original_resume_markdown": resume.content,
             "updated_resume_markdown": updated_resume,
