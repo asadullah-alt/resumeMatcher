@@ -247,31 +247,47 @@ class JobService:
         """
         Uses the AgentManager+JSONWrapper to ask the LLM to
         return the data in exact JSON schema we need.
+        Retries once if validation fails.
         """
         prompt_template = prompt_factory.get("structured_job")
         prompt = prompt_template.format(
             json.dumps(json_schema_factory.get("structured_job"), indent=2),
             job_description_text,
         )
-        logger.info(f"Structured Job Prompt: {prompt}")
-        raw_output_v1 = await self.json_agent_manager.run(prompt=prompt)
-        logging.info(f"Structured Job Raw Output (String Type Check): {type(raw_output_v1)}")
-        raw_output = self.fix_nested_json_strings(raw_output_v1)
-        logger.info(f"Structured Job Raw Output: {raw_output}")
-        try:
-            structured_job: StructuredJobModel = StructuredJobModel.model_validate(
-                raw_output
-            )
-        except ValidationError as e:
-            logger.info(f"Validation error: {e}")
-            error_details = []
-            for error in e.errors():
-                field = " -> ".join(str(loc) for loc in error["loc"])
-                error_details.append(f"{field}: {error['msg']}")
+        
+        # Try extraction twice with retry logic
+        for attempt in range(1, 3):
+            logger.info(f"Structured Job Extraction Attempt {attempt}")
+            logger.info(f"Structured Job Prompt: {prompt}")
+            raw_output_v1 = await self.json_agent_manager.run(prompt=prompt)
+            logging.info(f"Structured Job Raw Output (String Type Check): {type(raw_output_v1)}")
+            raw_output = self.fix_nested_json_strings(raw_output_v1)
+            logger.info(f"Structured Job Raw Output: {raw_output}")
             
-            logger.info(f"Validation error details: {'; '.join(error_details)}")
-            return None
-        return structured_job.model_dump(mode="json")
+            try:
+                structured_job: StructuredJobModel = StructuredJobModel.model_validate(
+                    raw_output
+                )
+                logger.info(f"Validation successful on attempt {attempt}")
+                return structured_job.model_dump(mode="json")
+            except ValidationError as e:
+                logger.info(f"Validation error on attempt {attempt}: {e}")
+                error_details = []
+                for error in e.errors():
+                    field = " -> ".join(str(loc) for loc in error["loc"])
+                    error_details.append(f"{field}: {error['msg']}")
+                
+                logger.info(f"Validation error details: {'; '.join(error_details)}")
+                
+                # If this is the last attempt, return None
+                if attempt == 2:
+                    logger.info("All retry attempts exhausted. Returning None.")
+                    return None
+                
+                # Otherwise, log that we're retrying
+                logger.info("Retrying extraction...")
+        
+        return None
 
     async def get_job_with_processed_data(self, job_id: str, token: str) -> Optional[Dict]:
         """
