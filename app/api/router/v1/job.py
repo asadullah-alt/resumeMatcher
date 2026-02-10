@@ -261,3 +261,36 @@ async def get_job_by_url(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error fetching job data",
         )
+@job_router.get(
+    "/usage-stats",
+    summary="Get detailed usage statistics including processed jobs and improvements",
+)
+async def get_usage_stats(
+    request: Request,
+    db: Any = Depends(get_db_session),
+):
+    """
+    Retrieves arrays of all ProcessedJob and Improvement records.
+    Does not require a token for now.
+    """
+    request_id = getattr(request.state, "request_id", str(uuid4()))
+    headers = {"X-Request-ID": request_id}
+
+    try:
+        job_service = JobService(db)
+        stats_data = await job_service.get_usage_stats()
+        
+        return JSONResponse(
+            content={
+                "request_id": request_id,
+                "data": stats_data,
+            },
+            headers=headers,
+        )
+    
+    except Exception as e:
+        logger.error(f"Error fetching usage stats: {str(e)} - traceback: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error fetching usage statistics",
+        )

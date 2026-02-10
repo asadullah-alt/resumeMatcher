@@ -405,3 +405,19 @@ class JobService:
                 "job_url": job.job_url,
             }
         }
+    async def get_usage_stats(self) -> Dict[str, Any]:
+        """
+        Fetches all ProcessedJob and Improvement records.
+        
+        Returns:
+            Dict containing arrays of ProcessedJob and Improvement records.
+        """
+        from app.models.improvement import Improvement
+        
+        processed_jobs = await ProcessedJob.find_all().to_list()
+        improvements = await Improvement.find_all().to_list()
+        
+        return {
+            "processed_jobs": processed_jobs,
+            "improvements": improvements
+        }
