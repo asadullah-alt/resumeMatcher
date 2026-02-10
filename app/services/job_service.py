@@ -407,15 +407,34 @@ class JobService:
         }
     async def get_usage_stats(self) -> Dict[str, Any]:
         """
-        Fetches all ProcessedJob and Improvement records.
+        Fetches all ProcessedJob and Improvement records, excluding specific test user.
         
         Returns:
             Dict containing arrays of ProcessedJob and Improvement records.
         """
         from app.models.improvement import Improvement
+        from app.models.user import User
         
-        processed_jobs = await ProcessedJob.find_all().to_list()
-        improvements = await Improvement.find_all().to_list()
+        # Find the user to exclude
+        exclude_user = await User.find_one({"local.email": "asadullahbeg@gmail.com"})
+        exclude_user_id = str(exclude_user.id) if exclude_user else None
+        
+        if exclude_user_id:
+            processed_jobs = await ProcessedJob.find(ProcessedJob.user_id != exclude_user_id).to_list()
+            # For improvements, we need to filter by resume_id which belongs to the user.
+            # This is more complex, but we can filter ProcessedJob easily.
+            # However, the user said "ignore the user", which might imply all their data.
+            # For Improvements, they don't have user_id directly.
+            improvements_all = await Improvement.find_all().to_list()
+            
+            # Get user's resume IDs to filter improvements
+            user_resumes = await Resume.find(Resume.user_id == exclude_user_id).to_list()
+            exclude_resume_ids = [str(r.resume_id) for r in user_resumes]
+            
+            improvements = [imp for imp in improvements_all if imp.resume_id not in exclude_resume_ids]
+        else:
+            processed_jobs = await ProcessedJob.find_all().to_list()
+            improvements = await Improvement.find_all().to_list()
         
         return {
             "processed_jobs": processed_jobs,
