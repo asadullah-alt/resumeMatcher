@@ -46,9 +46,9 @@ async def get_user_stats():
     
     stats_map = {} # email -> {user_obj, jobs_count, improvements_count}
     
-    print("\n" + "="*80)
-    print(f"{'User Name':<40} | {'Processed Jobs':<15} | {'Improvements':<15}")
-    print("="*80)
+    print("\n" + "="*95)
+    print(f"{'User Name':<40} | {'Processed Jobs':<15} | {'Improvements':<15} | {'Credits':<10}")
+    print("="*95)
 
     found_any = False
     for user in users:
@@ -86,7 +86,7 @@ async def get_user_stats():
             
         if job_count > 0 or improvement_count > 0:
             found_any = True
-            print(f"{display_name:<40} | {job_count:<15} | {improvement_count:<15}")
+            print(f"{display_name:<40} | {job_count:<15} | {improvement_count:<15} | {user.credits_remaining:<10}")
             if email:
                 stats_map[email.lower()] = {
                     "user": user,
@@ -101,7 +101,7 @@ async def get_user_stats():
         client.close()
         return
 
-    print("="*80)
+    print("="*95)
 
     while True:
         print("\nEnter a user email to see details (or 'exit' to quit):")
