@@ -67,10 +67,10 @@ async def get_admin_user(
 ):
     # Requirement: only authenticates if local.email is 'asadullahbeg' 
     # and token is the one in local.token for that user
-    if x_admin_email != "asadullahbeg":
+    if x_admin_email != "asadullahbeg@gmail.com":
         raise HTTPException(status_code=403, detail="Unauthorized: Only asadullahbeg can access this API.")
     
-    admin = await User.find_one({"local.email": "asadullahbeg"})
+    admin = await User.find_one({"local.email": "asadullahbeg@gmail.com"})
     if not admin or not admin.local or admin.local.token != x_admin_token:
         raise HTTPException(status_code=403, detail="Unauthorized: Invalid token or user not found.")
     
