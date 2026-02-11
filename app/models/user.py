@@ -5,7 +5,7 @@ import jwt
 import bcrypt
 from typing import Optional
 from beanie import Document
-from pydantic import Field, BaseModel, EmailStr
+from pydantic import Field, BaseModel, EmailStr, ConfigDict
 from app.core.config import settings
 from app.models.account_type import AccountType
 
@@ -19,9 +19,10 @@ class FacebookAuth(BaseModel):
     token: str
     name: str
     email: EmailStr
-class verificationCode(BaseModel):
+class VerificationCode(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
     code: str
-    expiresAt: datetime
+    expires_at: datetime = Field(alias="expiresAt")
 class GoogleAuth(BaseModel):
     id: str
     token: str
@@ -41,7 +42,7 @@ class User(Document):
     linkedin: Optional[LinkedInAuth] = None
     extension_token: Optional[str] = None
     active_resume: Optional[str] = None
-    verificationCode: Optional[verificationCode] = None
+    verification_code: Optional[VerificationCode] = Field(None, alias="verificationCode")
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
     
