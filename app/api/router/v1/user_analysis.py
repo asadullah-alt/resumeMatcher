@@ -52,6 +52,7 @@ class UserStats(BaseModel):
     user_email: str
     processed_jobs_count: int
     improvements_count: int
+    resumes_count: int
     credits_remaining: int
 
 class AddCreditsRequest(BaseModel):
@@ -129,6 +130,7 @@ async def get_all_users_stats(admin: User = Depends(get_admin_user)):
             user_email=email,
             processed_jobs_count=job_count,
             improvements_count=improvement_count,
+            resumes_count=len(user_resumes),
             credits_remaining=user.credits_remaining
         ))
         
