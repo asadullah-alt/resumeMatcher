@@ -46,6 +46,84 @@ EMAIL_TEMPLATE_LIVE = """
 </html>
 """
 
+EMAIL_TEMPLATE_NO_RESUME_NO_JOBS = """
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .container {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .header {{ background-color: #2196F3; color: white; padding: 10px; text-align: center; }}
+        .content {{ padding: 20px; }}
+        .footer {{ font-size: 0.8em; color: #777; text-align: center; margin-top: 20px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header"><h1>Action Required: Upload Your Resume</h1></div>
+        <div class="content">
+            <p>Hello,</p>
+            <p>It looks like you haven't uploaded your resume. In order to use our free premium tool you need to upload your resume.</p>
+            <p>Uploading your resume allows us to provide personalized job matching and AI-powered improvements.</p>
+            <p>Best regards,<br>The Support Team</p>
+        </div>
+        <div class="footer"><p>&copy; 2026 Bhai Kaam Do</p></div>
+    </div>
+</body>
+</html>
+"""
+
+EMAIL_TEMPLATE_NO_RESUME_WITH_JOBS = """
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .container {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .header {{ background-color: #2196F3; color: white; padding: 10px; text-align: center; }}
+        .content {{ padding: 20px; }}
+        .footer {{ font-size: 0.8em; color: #777; text-align: center; margin-top: 20px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header"><h1>Complete Your Profile to Improve Your CV</h1></div>
+        <div class="content">
+            <p>Hello,</p>
+            <p>It looks like you haven't uploaded your resume. Your processed jobs are saved, but you need to upload a CV so our system can improve it according to the job.</p>
+            <p>Once you upload your resume, we can automatically tailor it for the jobs you've already found!</p>
+            <p>Best regards,<br>The Support Team</p>
+        </div>
+        <div class="footer"><p>&copy; 2026 Bhai Kaam Do</p></div>
+    </div>
+</body>
+</html>
+"""
+
+EMAIL_TEMPLATE_FEEDBACK = """
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .container {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .header {{ background-color: #607D8B; color: white; padding: 10px; text-align: center; }}
+        .content {{ padding: 20px; }}
+        .footer {{ font-size: 0.8em; color: #777; text-align: center; margin-top: 20px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header"><h1>We Value Your Feedback</h1></div>
+        <div class="content">
+            <p>Hello,</p>
+            <p>If there is anything which you don't like please feel free to contact us at <strong>support@bhaikaamdo.com</strong>. We take every feedback extremely seriously.</p>
+            <p>Your input helps us build a better tool for everyone.</p>
+            <p>Best regards,<br>The Support Team</p>
+        </div>
+        <div class="footer"><p>&copy; 2026 Bhai Kaam Do</p></div>
+    </div>
+</body>
+</html>
+"""
+
 router = APIRouter()
 
 class UserStats(BaseModel):
@@ -62,6 +140,10 @@ class AddCreditsResponse(BaseModel):
     message: str
     new_credits: int
 
+class NotificationRequest(BaseModel):
+    user_email: str
+    template_type: str  # "no_resume", "no_resume_with_jobs", "feedback"
+
 async def get_admin_user(
     x_admin_email: str = Header(..., alias="X-Admin-Email"),
     x_admin_token: str = Header(..., alias="X-Admin-Token")
@@ -77,10 +159,9 @@ async def get_admin_user(
     
     return admin
 
-def send_notification_email(to_email: str, credits_added: int):
+def send_notification_email(to_email: str, template: str, subject: str):
     """Sends an HTML notification email using GoDaddy SMTP."""
-    subject = "Credits Added to Your Account"
-    body = EMAIL_TEMPLATE_LIVE.format(credits_added=credits_added)
+    body = template
     
     msg = MIMEMultipart()
     msg['From'] = EMAIL_USER
@@ -93,9 +174,15 @@ def send_notification_email(to_email: str, credits_added: int):
             server.starttls()  # Upgrade to secure connection
             server.login(EMAIL_USER, EMAIL_PASSWORD)
             server.send_message(msg)
-        logger.info(f"Successfully sent credit notification email to {to_email}")
+        logger.info(f"Successfully sent notification email to {to_email}")
     except Exception as e:
         logger.error(f"Failed to send email to {to_email}: {e}")
+
+def send_credit_notification_email(to_email: str, credits_added: int):
+    """Sends an HTML notification email for credits."""
+    subject = "Credits Added to Your Account"
+    template = EMAIL_TEMPLATE_LIVE.format(credits_added=credits_added)
+    send_notification_email(to_email, template, subject)
 
 @router.get("/stats", response_model=List[UserStats])
 async def get_all_users_stats(admin: User = Depends(get_admin_user)):
@@ -153,9 +240,26 @@ async def add_credits(request: AddCreditsRequest, admin: User = Depends(get_admi
     target_user.credits_remaining += 50
     await target_user.save()
     
-    send_notification_email(request.user_email, 50)
+    send_credit_notification_email(request.user_email, 50)
     
     return AddCreditsResponse(
         message=f"Added 50 credits to {request.user_email}",
         new_credits=target_user.credits_remaining
     )
+
+@router.post("/send-notification")
+async def trigger_notification(request: NotificationRequest, admin: User = Depends(get_admin_user)):
+    if request.template_type == "no_resume":
+        template = EMAIL_TEMPLATE_NO_RESUME_NO_JOBS
+        subject = "Action Required: Upload Your Resume"
+    elif request.template_type == "no_resume_with_jobs":
+        template = EMAIL_TEMPLATE_NO_RESUME_WITH_JOBS
+        subject = "Complete Your Profile to Improve Your CV"
+    elif request.template_type == "feedback":
+        template = EMAIL_TEMPLATE_FEEDBACK
+        subject = "We Value Your Feedback"
+    else:
+        raise HTTPException(status_code=400, detail="Invalid template type")
+    
+    send_notification_email(request.user_email, template, subject)
+    return {"message": f"Notification '{request.template_type}' sent to {request.user_email}"}
