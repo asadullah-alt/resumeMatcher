@@ -244,6 +244,7 @@ class UserStats(BaseModel):
     improvements_count: int
     resumes_count: int
     credits_remaining: int
+    created_at: datetime
 
 class AddCreditsRequest(BaseModel):
     user_email: EmailStr
@@ -338,9 +339,13 @@ async def get_all_users_stats(admin: User = Depends(get_admin_user)):
             processed_jobs_count=job_count,
             improvements_count=improvement_count,
             resumes_count=len(user_resumes),
-            credits_remaining=user.credits_remaining
+            credits_remaining=user.credits_remaining,
+            created_at=user.created_at
         ))
         
+    # Sort by created_at in ascending order
+    all_stats.sort(key=lambda x: x.created_at)
+    
     return all_stats
 
 @router.post("/add-credits", response_model=AddCreditsResponse)
