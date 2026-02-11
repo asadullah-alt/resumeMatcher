@@ -41,6 +41,7 @@ class User(Document):
     linkedin: Optional[LinkedInAuth] = None
     extension_token: Optional[str] = None
     active_resume: Optional[str] = None
+    verificationCode: Optional[verificationCode] = None
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
     
