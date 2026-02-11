@@ -12,6 +12,8 @@ import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
+import email.utils
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -160,21 +162,29 @@ async def get_admin_user(
     return admin
 
 def send_notification_email(to_email: str, template: str, subject: str):
-    """Sends an HTML notification email using GoDaddy SMTP."""
-    body = template
-    
+    """Sends an HTML notification email with improved deliverability headers."""
     msg = MIMEMultipart()
-    msg['From'] = EMAIL_USER
+    
+    # Standard Headers
+    msg['From'] = f"Bhai Kaam Do Support <{EMAIL_USER}>"
     msg['To'] = to_email
     msg['Subject'] = subject
-    msg.attach(MIMEText(body, 'html'))
+    msg['Date'] = email.utils.formatdate(localtime=True)
+    msg['Message-ID'] = email.utils.make_msgid(domain='bhaikaamdo.com')
+    
+    # Deliverability/Spam Prevention Headers
+    msg['List-Unsubscribe'] = f"<mailto:support@bhaikaamdo.com?subject=Unsubscribe%20{to_email}>"
+    msg['Precedence'] = 'bulk'
+    msg['X-Auto-Response-Suppress'] = 'All'
+    
+    msg.attach(MIMEText(template, 'html'))
     
     try:
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.starttls()  # Upgrade to secure connection
+            server.starttls()
             server.login(EMAIL_USER, EMAIL_PASSWORD)
             server.send_message(msg)
-        logger.info(f"Successfully sent notification email to {to_email}")
+        logger.info(f"Successfully sent notification email to {to_email} with subject: {subject}")
     except Exception as e:
         logger.error(f"Failed to send email to {to_email}: {e}")
 
@@ -251,13 +261,13 @@ async def add_credits(request: AddCreditsRequest, admin: User = Depends(get_admi
 async def trigger_notification(request: NotificationRequest, admin: User = Depends(get_admin_user)):
     if request.template_type == "no_resume":
         template = EMAIL_TEMPLATE_NO_RESUME_NO_JOBS
-        subject = "Action Required: Upload Your Resume"
+        subject = "Quick reminder: Upload your resume"
     elif request.template_type == "no_resume_with_jobs":
         template = EMAIL_TEMPLATE_NO_RESUME_WITH_JOBS
-        subject = "Complete Your Profile to Improve Your CV"
+        subject = "Next step: Improve your CV with your matches"
     elif request.template_type == "feedback":
         template = EMAIL_TEMPLATE_FEEDBACK
-        subject = "We Value Your Feedback"
+        subject = "We'd love to hear your thoughts"
     else:
         raise HTTPException(status_code=400, detail="Invalid template type")
     
