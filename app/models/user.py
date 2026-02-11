@@ -19,7 +19,9 @@ class FacebookAuth(BaseModel):
     token: str
     name: str
     email: EmailStr
-
+class verificationCode(BaseModel):
+    code: str
+    expiresAt: datetime
 class GoogleAuth(BaseModel):
     id: str
     token: str
