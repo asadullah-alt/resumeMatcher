@@ -126,6 +126,80 @@ EMAIL_TEMPLATE_FEEDBACK = """
 </html>
 """
 
+EMAIL_TEMPLATE_FOMO_PROMOTION = """
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .container {{ 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            line-height: 1.6; 
+            color: #2c3e50; 
+            max-width: 600px; 
+            margin: 0 auto; 
+            text-align: center;
+            border: 1px solid #eee;
+            border-radius: 10px;
+            overflow: hidden;
+        }}
+        .header {{ 
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%); 
+            color: white; 
+            padding: 40px 20px; 
+        }}
+        .content {{ padding: 40px 30px; }}
+        .footer {{ 
+            font-size: 0.85em; 
+            color: #95a5a6; 
+            padding: 20px;
+            background-color: #f9f9f9;
+        }}
+        .highlight {{ color: #e74c3c; font-weight: bold; font-size: 1.25em; }}
+        .cta-button {{
+            display: inline-block;
+            padding: 15px 35px;
+            background-color: #ff4b2b;
+            color: white !important;
+            text-decoration: none;
+            border-radius: 30px;
+            font-weight: bold;
+            margin-top: 25px;
+            box-shadow: 0 4px 15px rgba(255, 75, 43, 0.3);
+        }}
+        h1 {{ margin-top: 0; font-size: 2.2em; }}
+        .urgent {{ background-color: #fff3f3; padding: 10px; border-radius: 5px; border: 1px dashed #ff4b2b; display: inline-block; margin: 15px 0; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Don't Stay Behind! 🚀</h1>
+        </div>
+        <div class="content">
+            <p style="font-size: 1.1em;">Did you know?</p>
+            <p><span class="highlight">Tailor-making your resume</span> for each job application can increase your chances of landing an interview by <span class="highlight">40%</span>!</p>
+            
+            <p>You haven't used your premium credits yet, and we want to help you land that dream job.</p>
+            
+            <div class="urgent">
+               Our premium tailoring service is <strong>FREE</strong> for a very limited time!
+            </div>
+            
+            <p>This is your chance to use our high-end AI tool to perfectly align your profile with the job requirements. Don't let this opportunity slip away.</p>
+            
+            <a href="https://bhaikaamdo.com" class="cta-button">Avail This Chance Now</a>
+            
+            <p style="margin-top: 30px; font-style: italic; color: #7f8c8d;">Acting fast is the first step toward your new career.</p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2026 Bhai Kaam Do Support Team</p>
+            <p>You received this because you are a valued member of our community.</p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
 router = APIRouter()
 
 class UserStats(BaseModel):
@@ -144,7 +218,7 @@ class AddCreditsResponse(BaseModel):
 
 class NotificationRequest(BaseModel):
     user_email: str
-    template_type: str  # "no_resume", "no_resume_with_jobs", "feedback"
+    template_type: str  # "no_resume", "no_resume_with_jobs", "feedback", "fomo_promotion"
 
 async def get_admin_user(
     x_admin_email: str = Header(..., alias="X-Admin-Email"),
@@ -268,6 +342,9 @@ async def trigger_notification(request: NotificationRequest, admin: User = Depen
     elif request.template_type == "feedback":
         template = EMAIL_TEMPLATE_FEEDBACK
         subject = "We'd love to hear your thoughts"
+    elif request.template_type == "fomo_promotion":
+        template = EMAIL_TEMPLATE_FOMO_PROMOTION
+        subject = "🔥 Secret to 40% more interviews (Limited Time Free!)"
     else:
         raise HTTPException(status_code=400, detail="Invalid template type")
     
