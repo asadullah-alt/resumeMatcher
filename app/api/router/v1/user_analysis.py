@@ -128,74 +128,110 @@ EMAIL_TEMPLATE_FEEDBACK = """
 
 EMAIL_TEMPLATE_FOMO_PROMOTION = """
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <style>
-        .container {{ 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            line-height: 1.6; 
-            color: #2c3e50; 
-            max-width: 600px; 
-            margin: 0 auto; 
-            text-align: center;
-            border: 1px solid #eee;
-            border-radius: 10px;
-            overflow: hidden;
-        }}
-        .header {{ 
-            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%); 
-            color: white; 
-            padding: 40px 20px; 
-        }}
-        .content {{ padding: 40px 30px; }}
-        .footer {{ 
-            font-size: 0.85em; 
-            color: #95a5a6; 
-            padding: 20px;
-            background-color: #f9f9f9;
-        }}
-        .highlight {{ color: #e74c3c; font-weight: bold; font-size: 1.25em; }}
-        .cta-button {{
-            display: inline-block;
-            padding: 15px 35px;
-            background-color: #ff4b2b;
-            color: white !important;
-            text-decoration: none;
-            border-radius: 30px;
-            font-weight: bold;
-            margin-top: 25px;
-            box-shadow: 0 4px 15px rgba(255, 75, 43, 0.3);
-        }}
-        h1 {{ margin-top: 0; font-size: 2.2em; }}
-        .urgent {{ background-color: #fff3f3; padding: 10px; border-radius: 5px; border: 1px dashed #ff4b2b; display: inline-block; margin: 15px 0; }}
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Improve Your Success Rate - Bhai Kaam Do</title>
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>Don't Stay Behind! 🚀</h1>
-        </div>
-        <div class="content">
-            <p style="font-size: 1.1em;">Did you know?</p>
-            <p><span class="highlight">Tailor-making your resume</span> for each job application can increase your chances of landing an interview by <span class="highlight">40%</span>!</p>
-            
-            <p>You haven't used your premium credits yet, and we want to help you land that dream job.</p>
-            
-            <div class="urgent">
-               Our premium tailoring service is <strong>FREE</strong> for a very limited time!
-            </div>
-            
-            <p>This is your chance to use our high-end AI tool to perfectly align your profile with the job requirements. Don't let this opportunity slip away.</p>
-            
-            <a href="https://bhaikaamdo.com" class="cta-button">Avail This Chance Now</a>
-            
-            <p style="margin-top: 30px; font-style: italic; color: #7f8c8d;">Acting fast is the first step toward your new career.</p>
-        </div>
-        <div class="footer">
-            <p>&copy; 2026 Bhai Kaam Do Support Team</p>
-            <p>You received this because you are a valued member of our community.</p>
-        </div>
-    </div>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f4;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f4f4f4;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 32px; font-weight: 700; line-height: 1.2;">
+                                Don't Stay Behind
+                            </h1>
+                            <p style="margin: 10px 0 0 0; color: #ffffff; font-size: 18px; opacity: 0.95;">
+                                Your Career Deserves the Best
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Main Content -->
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <p style="margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">
+                                Dear valued user,
+                            </p>
+                            
+                            <p style="margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">
+                                Did you know that <strong>tailor-making your resume</strong> for each job application can increase your chances of landing an interview by <strong style="color: #667eea;">40%</strong>?
+                            </p>
+
+                            <p style="margin: 0 0 30px 0; color: #333333; font-size: 16px; line-height: 1.6;">
+                                You haven't used your premium credits yet, and we want to help you land that dream job. We're excited to offer you a special opportunity.
+                            </p>
+
+                            <!-- Special Offer Section -->
+                            <div style="background-color: #f8f9ff; border-left: 4px solid #667eea; padding: 20px; margin: 0 0 30px 0; border-radius: 4px;">
+                                <h2 style="margin: 0 0 15px 0; color: #667eea; font-size: 20px; font-weight: 600;">
+                                    Special Offer:
+                                </h2>
+                                <p style="margin: 0; color: #333333; font-size: 16px; line-height: 1.6;">
+                                    Our premium tailoring service is <strong>FREE</strong> for a very limited time! Use our high-end AI tool to perfectly align your profile with the job requirements.
+                                </p>
+                            </div>
+
+                            <!-- CTA Button -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0 0 30px 0;">
+                                <tr>
+                                    <td align="center">
+                                        <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                                            <tr>
+                                                <td>
+                                                    <a href="https://bhaikaamdo.com" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 6px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);">
+                                                        Avail This Chance Now
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p style="margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">
+                                This is your chance to stand out from the crowd. Don't let this opportunity slip away. Acting fast is the first step toward your new career.
+                            </p>
+
+                            <p style="margin: 0; color: #333333; font-size: 16px; line-height: 1.6;">
+                                Thank you for being part of the <strong>Bhai Kaam Do</strong> community!
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Signature -->
+                    <tr>
+                        <td style="padding: 0 30px 40px 30px;">
+                            <p style="margin: 0 0 5px 0; color: #333333; font-size: 16px; font-weight: 600;">
+                                Best regards,
+                            </p>
+                            <p style="margin: 0; color: #667eea; font-size: 16px; font-weight: 600;">
+                                The Bhai Kaam Do Team
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f9fafb; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+                            <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">
+                                If you have any questions, feel free to reach out to us.
+                            </p>
+                            <p style="margin: 0; color: #6b7280; font-size: 14px; text-align: center;">
+                                &copy; 2026 Bhai Kaam Do
+                            </p>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
 </body>
 </html>
 """
@@ -344,7 +380,7 @@ async def trigger_notification(request: NotificationRequest, admin: User = Depen
         subject = "We'd love to hear your thoughts"
     elif request.template_type == "fomo_promotion":
         template = EMAIL_TEMPLATE_FOMO_PROMOTION
-        subject = "🔥 Secret to 40% more interviews (Limited Time Free!)"
+        subject = "Improve your job application success rate by 40%"
     else:
         raise HTTPException(status_code=400, detail="Invalid template type")
     
