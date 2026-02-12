@@ -264,6 +264,9 @@ class UserDetailsResponse(BaseModel):
     improvements: List[dict]
     cover_letters: List[dict]
 
+class DeleteRecordRequest(BaseModel):
+    id: str
+
 async def get_admin_user(
     x_admin_email: str = Header(..., alias="X-Admin-Email"),
     x_admin_token: str = Header(..., alias="X-Admin-Token")
@@ -403,6 +406,38 @@ async def get_user_details(user_email: str, admin: User = Depends(get_admin_user
         improvements=[i.model_dump(mode='json') for i in improvements],
         cover_letters=[c.model_dump(mode='json') for c in cover_letters]
     )
+
+@router.delete("/delete-processed-job")
+async def delete_processed_job(request: DeleteRecordRequest, admin: User = Depends(get_admin_user)):
+    job = await ProcessedJob.get(request.id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Processed Job not found")
+    await job.delete()
+    return {"message": "Processed Job deleted successfully"}
+
+@router.delete("/delete-processed-resume")
+async def delete_processed_resume(request: DeleteRecordRequest, admin: User = Depends(get_admin_user)):
+    resume = await ProcessedResume.get(request.id)
+    if not resume:
+        raise HTTPException(status_code=404, detail="Processed Resume not found")
+    await resume.delete()
+    return {"message": "Processed Resume deleted successfully"}
+
+@router.delete("/delete-improvement")
+async def delete_improvement(request: DeleteRecordRequest, admin: User = Depends(get_admin_user)):
+    improvement = await Improvement.get(request.id)
+    if not improvement:
+        raise HTTPException(status_code=404, detail="Improvement not found")
+    await improvement.delete()
+    return {"message": "Improvement deleted successfully"}
+
+@router.delete("/delete-cover-letter")
+async def delete_cover_letter(request: DeleteRecordRequest, admin: User = Depends(get_admin_user)):
+    cl = await CoverLetter.get(request.id)
+    if not cl:
+        raise HTTPException(status_code=404, detail="Cover Letter not found")
+    await cl.delete()
+    return {"message": "Cover Letter deleted successfully"}
 
 @router.post("/add-credits", response_model=AddCreditsResponse)
 async def add_credits(request: AddCreditsRequest, admin: User = Depends(get_admin_user)):
