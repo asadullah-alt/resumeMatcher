@@ -23,6 +23,12 @@ class VerificationCode(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     code: str
     expires_at: datetime = Field(alias="expiresAt")
+
+class VerificationAttempts(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    count: int
+    last_attempt: datetime = Field(alias="lastAttempt")
+
 class GoogleAuth(BaseModel):
     id: str
     token: str
@@ -43,6 +49,7 @@ class User(Document):
     extension_token: Optional[str] = None
     active_resume: Optional[str] = None
     verification_code: Optional[VerificationCode] = Field(None, alias="verificationCode")
+    verification_attempts: Optional[VerificationAttempts] = Field(None, alias="verificationAttempts")
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
     
