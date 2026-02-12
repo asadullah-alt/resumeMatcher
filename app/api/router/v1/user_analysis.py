@@ -396,12 +396,12 @@ async def get_user_details(user_email: str, admin: User = Depends(get_admin_user
     if resume_ids:
         improvements = await Improvement.find(In(Improvement.resume_id, resume_ids)).to_list()
     
-    # Convert Documents to dicts for JSON serialization
+    # Convert Documents to dicts for JSON serialization using model_dump(mode='json') to handle PydanticObjectId
     return UserDetailsResponse(
-        processed_resumes=[r.dict() for r in processed_resumes],
-        processed_jobs=[j.dict() for j in processed_jobs],
-        improvements=[i.dict() for i in improvements],
-        cover_letters=[c.dict() for c in cover_letters]
+        processed_resumes=[r.model_dump(mode='json') for r in processed_resumes],
+        processed_jobs=[j.model_dump(mode='json') for j in processed_jobs],
+        improvements=[i.model_dump(mode='json') for i in improvements],
+        cover_letters=[c.model_dump(mode='json') for c in cover_letters]
     )
 
 @router.post("/add-credits", response_model=AddCreditsResponse)
