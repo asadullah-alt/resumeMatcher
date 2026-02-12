@@ -340,7 +340,7 @@ async def get_all_users_stats(admin: User = Depends(get_admin_user)):
             improvements_count=improvement_count,
             resumes_count=len(user_resumes),
             credits_remaining=user.credits_remaining,
-            created_at=user.verificationCode.expiresAt
+            created_at=user.verification_code.expires_at
         ))
         
     # Sort by created_at in ascending order
