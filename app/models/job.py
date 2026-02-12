@@ -154,6 +154,52 @@ class ProcessedJob(Document):
         populate_by_name = True
         str_strip_whitespace = True
 
+
+class ProcessedOpenJobs(Document):
+    """Document for storing processed open job postings."""
+    job_url: str
+    user_id: str
+    job_id: str
+    job_title: Optional[str] = Field(None, alias="jobTitle")
+    company_profile: Optional[CompanyProfile] = Field(None, alias="companyProfile")
+    location: Optional[Location] = None
+    date_posted: Optional[str] = Field(None, alias="datePosted")
+    employment_type: Optional[EmploymentTypeEnum] = Field(None, alias="employmentType")
+    job_summary: Optional[str] = Field(None, alias="jobSummary")
+    key_responsibilities: Optional[List[str]] = Field(None, alias="keyResponsibilities")
+    qualifications: Optional[Qualifications] = None
+    compensation_and_benefits: Optional[CompensationAndBenefits] = Field(
+        None, alias="compensationAndBenefits"
+    )
+    application_info: Optional[ApplicationInfo] = Field(None, alias="applicationInfo")
+    extracted_keywords: Optional[List[str]] = Field(None, alias="extractedKeywords")
+    is_visa_sponsored: Optional[bool] = Field(None, alias="isVisaSponsored")
+    is_remote: Optional[bool] = Field(None, alias="isRemote")
+
+    # Extra field for open jobs
+    analyzed: bool = False
+    
+    # Metadata fields
+    processed_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    class Settings:
+        name = "ProcessedOpenJobs"
+        indexes = [
+            "user_id",
+            "job_id",
+            [("user_id", 1), ("job_id", 1)],
+            "employment_type",
+            "date_posted",
+            "processed_at",
+        ]
+
+    class Config:
+        use_enum_values = True
+        populate_by_name = True
+        str_strip_whitespace = True
+
+
 class Job(Document):
     job_url: str
     user_id: str

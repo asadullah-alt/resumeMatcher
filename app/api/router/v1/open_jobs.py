@@ -1,6 +1,7 @@
 from typing import List
 from fastapi import APIRouter, status
 from app.models.job import Job
+from app.services.open_job_service import OpenJobService
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -37,10 +38,25 @@ async def create_open_jobs(jobs: List[Job]):
             user_id=job_data.user_id,
             job_id=job_data.job_id,
             content=job_data.content,
-            raw_content=job_data.raw_content,
+            raw_content=job_data.content,
             public=job_data.public
         )
         await new_job.insert()
+        
+        # Process the job using the new service
+        try:
+            open_job_service = OpenJobService()
+            await open_job_service.run(
+                job_id=new_job.job_id,
+                user_id=new_job.user_id,
+                content=new_job.content,
+                job_url=new_job.job_url
+            )
+        except Exception as e:
+            # We log the error but don't fail the whole request
+            import logging
+            logging.getLogger(__name__).error(f"Error processing open job {new_job.job_id}: {e}")
+            
         inserted_count += 1
 
     return BatchJobResponse(
