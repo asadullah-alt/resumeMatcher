@@ -161,4 +161,5 @@ class Job(Document):
     content: str
     raw_content: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    public: bool = False
 

@@ -21,8 +21,9 @@ logger = logging.getLogger(__name__)
 # Email configuration
 EMAIL_USER = os.getenv('EMAIL_USER', 'support@bhaikaamdo.com')
 EMAIL_PASSWORD = os.getenv('EMAIL_PASSWORD', 'Apogee12345!')
-SMTP_SERVER = 'smtpout.secureserver.net'
-SMTP_PORT = 587
+# SMTP2GO settings
+SMTP_SERVER = 'mail-eu.smtp2go.com'
+SMTP_PORT = 2525
 EMAIL_TEMPLATE_LIVE = """
 <!DOCTYPE html>
 <html>
