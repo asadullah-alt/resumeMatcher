@@ -317,7 +317,7 @@ def send_credit_notification_email(to_email: str, credits_added: int):
 
 @router.get("/stats", response_model=List[UserStats])
 async def get_all_users_stats(admin: User = Depends(get_admin_user)):
-    users = await User.find_all().to_list()
+    users = await User.find({"local.token": {"$exists": True, "$ne": None}}).to_list()
     
     all_stats = []
     for user in users:
