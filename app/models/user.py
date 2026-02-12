@@ -27,7 +27,7 @@ class VerificationCode(BaseModel):
 class VerificationAttempts(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     count: int
-    last_attempt: datetime = Field(alias="lastAttempt")
+    last_attempt: Optional[datetime] = Field(alias="lastAttempt")
 
 class GoogleAuth(BaseModel):
     id: str
