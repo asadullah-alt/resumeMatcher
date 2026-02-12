@@ -4,7 +4,8 @@ from pydantic import BaseModel, EmailStr
 from app.models.user import User
 from app.models.job import ProcessedJob
 from app.models.improvement import Improvement
-from app.models.resume import Resume
+from app.models.resume import Resume, ProcessedResume
+from app.models.cover_letter import CoverLetter
 from beanie.operators import In
 import logging
 import smtplib
@@ -257,6 +258,12 @@ class NotificationRequest(BaseModel):
     user_email: str
     template_type: str  # "no_resume", "no_resume_with_jobs", "feedback", "fomo_promotion"
 
+class UserDetailsResponse(BaseModel):
+    processed_resumes: List[dict]
+    processed_jobs: List[dict]
+    improvements: List[dict]
+    cover_letters: List[dict]
+
 async def get_admin_user(
     x_admin_email: str = Header(..., alias="X-Admin-Email"),
     x_admin_token: str = Header(..., alias="X-Admin-Token")
@@ -356,6 +363,46 @@ async def get_all_users_stats(admin: User = Depends(get_admin_user)):
     all_stats.sort(key=lambda x: x.created_at)
     
     return all_stats
+
+@router.get("/details/{user_email}", response_model=UserDetailsResponse)
+async def get_user_details(user_email: str, admin: User = Depends(get_admin_user)):
+    # Find user by email in various auth fields
+    user = await User.find_one({"local.email": user_email})
+    if not user:
+        user = await User.find_one({"google.email": user_email})
+    if not user:
+        user = await User.find_one({"facebook.email": user_email})
+    if not user:
+        user = await User.find_one({"linkedin.email": user_email})
+        
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user_id_str = str(user.id)
+    
+    # Fetch all related records
+    processed_jobs = await ProcessedJob.find(ProcessedJob.user_id == user_id_str).to_list()
+    processed_resumes = await ProcessedResume.find(ProcessedResume.user_id == user_id_str).to_list()
+    cover_letters = await CoverLetter.find(CoverLetter.user_id == user_id_str).to_list()
+    
+    # Improvements are linked to resumes, but let's fetch by user_id if possible, 
+    # or follow the logic in get_all_users_stats
+    resume_ids = [str(r.resume_id) for r in processed_resumes]
+    # Also include base Resumes just in case
+    base_resumes = await Resume.find(Resume.user_id == user_id_str).to_list()
+    resume_ids.extend([str(r.resume_id) for r in base_resumes if str(r.resume_id) not in resume_ids])
+    
+    improvements = []
+    if resume_ids:
+        improvements = await Improvement.find(In(Improvement.resume_id, resume_ids)).to_list()
+    
+    # Convert Documents to dicts for JSON serialization
+    return UserDetailsResponse(
+        processed_resumes=[r.dict() for r in processed_resumes],
+        processed_jobs=[j.dict() for j in processed_jobs],
+        improvements=[i.dict() for i in improvements],
+        cover_letters=[c.dict() for c in cover_letters]
+    )
 
 @router.post("/add-credits", response_model=AddCreditsResponse)
 async def add_credits(request: AddCreditsRequest, admin: User = Depends(get_admin_user)):
