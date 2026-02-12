@@ -57,7 +57,7 @@ class OllamaBaseProvider:
 class OllamaProvider(Provider, OllamaBaseProvider):
     def __init__(self,
                  model_name: str = settings.LL_MODEL,
-                 api_base_url: Optional[str] = settings.LLM_BASE_URL,
+                 api_base_url: Optional[str] = "http://localhost:11434",
                  opts: Dict[str, Any] = None):
         if opts is None:
             opts = {}
