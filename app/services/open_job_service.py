@@ -15,7 +15,7 @@ class OpenJobService:
     def __init__(self):
         self.json_agent_manager = AgentManager(
             model_provider="ollama",
-            model="openai/gpt-oss-safeguard-20b"
+            model="gpt-oss-safeguard:20b"
         )
 
     async def run(self, job_id: str, user_id: str, content: str, job_url: str = None) -> Optional[ProcessedOpenJobs]:
