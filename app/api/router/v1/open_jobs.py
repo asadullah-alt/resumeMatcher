@@ -3,6 +3,7 @@ from fastapi import APIRouter, status, Header, HTTPException, Depends
 from app.models.job import Job, ProcessedOpenJobs
 from app.services.open_job_service import OpenJobService
 from pydantic import BaseModel
+from app.models.user import User
 
 router = APIRouter()
 
