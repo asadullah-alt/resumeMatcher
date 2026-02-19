@@ -1,0 +1,10 @@
+beanie
+motor
+openai
+httpx
+torch
+transformers
+skillNer
+python-dotenv
+pydantic>=2.0
+spacy

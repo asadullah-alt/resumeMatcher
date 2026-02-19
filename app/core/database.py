@@ -17,6 +17,7 @@ from ..models import (
     ProcessedOpenJobs,
     ImprovedResume,
 )
+from job_processor.models.job import OpenJobsVector
 
 
 # Globals populated during startup
@@ -43,6 +44,7 @@ async def init_db(app=None) -> None:
             CoverLetter,
             ProcessedOpenJobs,
             ImprovedResume,
+            OpenJobsVector,
         ],
     )
 

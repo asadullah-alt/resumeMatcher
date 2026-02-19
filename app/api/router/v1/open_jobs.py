@@ -1,9 +1,38 @@
+import asyncio
+import logging
+import traceback
 from typing import List
 from fastapi import APIRouter, status, Header, HTTPException, Depends
 from app.models.job import Job, ProcessedOpenJobs
 from app.services.open_job_service import OpenJobService
 from pydantic import BaseModel
 from app.models.user import User
+
+logger = logging.getLogger(__name__)
+
+
+async def _run_processor_after_delay(job_pairs: list):
+    """
+    Background task: waits 60 seconds then runs JobProcessor on each
+    (source_job, processed_job) pair. Runs in the FastAPI event loop so
+    no extra DB connection is needed.
+    """
+    logger.info(
+        f"JobProcessor scheduled: waiting 60s before processing {len(job_pairs)} job(s)..."
+    )
+    await asyncio.sleep(60)
+
+    from job_processor.services.processor import JobProcessor
+    processor = JobProcessor()
+
+    for source_job, processed_job in job_pairs:
+        try:
+            logger.info(f"[Job {source_job.job_id}] Starting JobProcessor pipeline")
+            await processor.process_new_job(source_job, processed_job)
+        except Exception as e:
+            logger.error(
+                f"[Job {source_job.job_id}] JobProcessor failed: {e}\n{traceback.format_exc()}"
+            )
 
 router = APIRouter()
 
@@ -36,6 +65,8 @@ async def create_open_jobs(jobs: List[Job], admin: User = Depends(get_admin_user
     inserted_count = 0
     skipped_count = 0
     processed_jobs = []
+    # Pairs collected for background processing: (Job, ProcessedOpenJobs)
+    jobs_to_process: list = []
 
     for job_data in jobs:
         # Check if job already exists with public=True
@@ -72,13 +103,20 @@ async def create_open_jobs(jobs: List[Job], admin: User = Depends(get_admin_user
             )
             if processed_job:
                 processed_jobs.append(processed_job)
+                jobs_to_process.append((new_job, processed_job))
         except Exception as e:
             # We log the error but don't fail the whole request
-            import logging
-            import traceback
-            logging.getLogger(__name__).error(f"Error processing open job {new_job.job_id}: {e}\n{traceback.format_exc()}")
-            
+            logger.error(f"Error processing open job {new_job.job_id}: {e}\n{traceback.format_exc()}")
+
         inserted_count += 1
+
+    # Fire background task: wait 60s then run JobProcessor for all newly inserted jobs
+    if jobs_to_process:
+        asyncio.create_task(_run_processor_after_delay(jobs_to_process))
+        logger.info(
+            f"Background JobProcessor task queued for {len(jobs_to_process)} job(s) "
+            f"(will run after 60s delay)"
+        )
 
     return BatchJobResponse(
         inserted_count=inserted_count,
