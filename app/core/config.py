@@ -12,6 +12,9 @@ _DEFAULT_DB_PATH = os.path.join(_BACKEND_ROOT, "app.db")
 class Settings(BaseSettings):
     # The defaults here provide a fully working local configuration so new
     # contributors can run the stack without editing environment variables.
+    ENV: Literal["development", "test", "production"] = "development"
+    HOST: str = "0.0.0.0"
+    PORT: int = 8000
     PROJECT_NAME: str = "Resume Matcher"
     FRONTEND_PATH: str = os.path.join(os.path.dirname(__file__), "frontend", "assets")
     ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000","https://careerforge.datapsx.com","*"]
@@ -37,7 +40,10 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: Optional[str] = "dengcao/Qwen3-Embedding-0.6B:Q8_0"
     
     model_config = SettingsConfigDict(
-        env_file=os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, ".env"),
+        env_file=(
+            os.path.join(_BACKEND_ROOT, ".env"),
+            os.path.join(_BACKEND_ROOT, f".env.{os.getenv('ENV', 'development')}"),
+        ),
         env_file_encoding="utf-8",
         extra="ignore",
     )
