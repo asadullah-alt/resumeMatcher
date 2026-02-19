@@ -1,0 +1,7 @@
+beanie
+motor
+pydantic
+pydantic-settings
+openai
+httpx
+python-dotenv

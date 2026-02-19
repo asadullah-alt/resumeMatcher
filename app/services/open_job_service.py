@@ -18,12 +18,12 @@ class OpenJobService:
             model="mistral-nemo:latest"
         )
 
-    async def run(self, job_id: str, user_id: str, content: str, job_url: str = None):
+    async def run(self, job_id: str, user_id: str, content: str, job_url: str = None) -> Optional[ProcessedOpenJobs]:
         """
         Processes the job by extracting structured data and storing it.
         """
         logger.info(f"Processing open job: {job_id}")
-        await self._extract_and_store_structured_open_job(
+        return await self._extract_and_store_structured_open_job(
             job_id=job_id,
             user_id=user_id,
             job_description_text=content,
@@ -57,7 +57,7 @@ class OpenJobService:
             application_info=structured_job.get("application_info"),
             is_visa_sponsored=structured_job.get("is_visa_sponsored", None),
             is_remote=structured_job.get("is_remote", None),
-            analyzed=True
+            analyzed=False
         )
 
         extracted_kw = structured_job.get("extracted_keywords")
@@ -79,7 +79,7 @@ class OpenJobService:
         processed_job.extracted_keywords = extracted_kw
         await processed_job.insert()
         logger.info(f"Successfully processed and stored open job: {job_id}")
-        return job_id
+        return processed_job
 
     def fix_nested_json_strings(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Recursively parses any string values that look like JSON."""
