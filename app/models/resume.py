@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Optional, List
 from enum import Enum
 
@@ -132,7 +132,7 @@ class ImprovedResume(Document):
     languages: Optional[List[Language]] = Field(default_factory=list)
     summary: Optional[str] = None
     extracted_keywords: Optional[List[str]] = Field(default_factory=list)
-    processed_at: datetime = Field(default_factory=datetime.utcnow)
+    processed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 class ProcessedResume(Document):
     """Processed resume stored as a Beanie Document with structured fields.
@@ -159,7 +159,7 @@ class ProcessedResume(Document):
     summary: Optional[str] = None
     extracted_keywords: Optional[List[str]] = Field(default_factory=list)
 
-    processed_at: datetime = Field(default_factory=datetime.utcnow)
+    processed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class Resume(Document):
@@ -168,5 +168,5 @@ class Resume(Document):
     resume_name: str
     content: str
     content_type: Optional[str]
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 

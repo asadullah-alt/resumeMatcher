@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import Optional
 
 from app.models.user import User
@@ -29,7 +29,7 @@ class BillingService:
         Returns:
             Updated user document (saved to database if reset occurred)
         """
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         days_since_reset = (now - user.last_credit_reset).days
         
         if days_since_reset >= 30:

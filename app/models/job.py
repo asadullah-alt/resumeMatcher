@@ -1,12 +1,7 @@
-from __future__ import annotations
-
-from datetime import datetime
-from typing import Optional, List
-
-from beanie import Document
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Optional, List
 import enum
+from beanie import Document
 from pydantic import Field, BaseModel
 
 
@@ -135,8 +130,8 @@ class ProcessedJob(Document):
     is_remote: Optional[bool] = Field(None, alias="isRemote")
     
     # Metadata fields
-    processed_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    processed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     class Settings:
         name = "ProcessedJob"
@@ -180,8 +175,8 @@ class ProcessedOpenJobs(Document):
     analyzed: bool = False
     
     # Metadata fields
-    processed_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    processed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     class Settings:
         name = "ProcessedOpenJobs"
@@ -206,6 +201,6 @@ class Job(Document):
     job_id: str
     content: str
     raw_content: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     public: bool = False
 

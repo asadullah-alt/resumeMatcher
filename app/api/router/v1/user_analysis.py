@@ -12,7 +12,7 @@ import smtplib
 import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from datetime import datetime
+from datetime import datetime, UTC
 import email.utils
 import uuid
 
@@ -345,14 +345,14 @@ async def get_all_users_stats(admin: User = Depends(get_admin_user)):
         if resume_ids:
             improvement_count = await Improvement.find(In(Improvement.resume_id, resume_ids)).count()
             
-        # Priority for created_at: user.created_at -> user.verification_code.expires_at -> user.verification_attempts.last_attempt -> utcnow
+        # Priority for created_at: user.created_at -> user.verification_code.expires_at -> user.verification_attempts.last_attempt -> UTC now
         user_created_at = getattr(user, "created_at", None)
         if not user_created_at and user.verification_code:
             user_created_at = user.verification_code.expires_at
         if not user_created_at and user.verification_attempts:
             user_created_at = user.verification_attempts.last_attempt
         if not user_created_at:
-            user_created_at = datetime.utcnow()
+            user_created_at = datetime.now(UTC)
 
         all_stats.append(UserStats(
             user_email=email,

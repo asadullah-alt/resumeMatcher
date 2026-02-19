@@ -75,7 +75,8 @@ async def create_open_jobs(jobs: List[Job], admin: User = Depends(get_admin_user
         except Exception as e:
             # We log the error but don't fail the whole request
             import logging
-            logging.getLogger(__name__).error(f"Error processing open job {new_job.job_id}: {e}")
+            import traceback
+            logging.getLogger(__name__).error(f"Error processing open job {new_job.job_id}: {e}\n{traceback.format_exc()}")
             
         inserted_count += 1
 

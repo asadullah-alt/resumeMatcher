@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Optional, List, Dict, Any
 
 from beanie import Document
@@ -26,8 +26,8 @@ class Improvement(Document):
     job_keywords: str
     skill_comparison: List[Dict[str, Any]] = Field(default_factory=list)
     similarity_comparison: Optional[float] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     class Settings:
         name = "Improvement"

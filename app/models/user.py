@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 import jwt
 import bcrypt
 from typing import Optional
@@ -51,13 +51,13 @@ class User(Document):
     verification_code: Optional[VerificationCode] = Field(None, alias="verificationCode")
     verification_attempts: Optional[VerificationAttempts] = Field(None, alias="verificationAttempts")
     
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     
     # Billing fields
     account_type: AccountType = Field(default=AccountType.JOB_TRACKER)
     credits_remaining: int = Field(default=5)
     credits_used_this_period: int = Field(default=0)
-    last_credit_reset: datetime = Field(default_factory=datetime.utcnow)
+    last_credit_reset: datetime = Field(default_factory=lambda: datetime.now(UTC))
     total_credits_lifetime: int = Field(default=0)
 
     async def generate_hash(self, password: str) -> str:
@@ -77,7 +77,7 @@ class User(Document):
     async def generate_jwt(self, email: str) -> str:
         """Generate a JWT token valid for 15 minutes."""
        
-        expiration = datetime.utcnow() + timedelta(minutes=15)
+        expiration = datetime.now(UTC) + timedelta(minutes=15)
         
         payload = {
             "email": email,

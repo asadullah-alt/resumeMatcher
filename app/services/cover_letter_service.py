@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, UTC
 from typing import Optional
 from app.agent import AgentManager
 from app.prompt import prompt_factory
@@ -130,7 +131,7 @@ class CoverLetterService:
         )
         if cover_letter:
             cover_letter.content = content
-            cover_letter.updated_at = datetime.utcnow()
+            cover_letter.updated_at = datetime.now(UTC)
             await cover_letter.save()
             return cover_letter.content
         return None

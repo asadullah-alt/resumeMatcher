@@ -6,7 +6,7 @@ import markdown
 import numpy as np
 import re
 
-from datetime import datetime
+from datetime import datetime, UTC
 from pydantic import ValidationError
 from typing import Dict, Optional, Tuple, AsyncGenerator, List
 
@@ -278,7 +278,7 @@ class ScoreImprovementService:
             existing_improvement.job_description = improvement_data["job_description"]
             existing_improvement.job_keywords = improvement_data["job_keywords"]
             existing_improvement.skill_comparison = improvement_data["skill_comparison"]
-            existing_improvement.updated_at = datetime.utcnow()
+            existing_improvement.updated_at = datetime.now(UTC)
             await existing_improvement.save()
             logger.info(
                 f"Updated improvement for resume_id={resume_id}, job_id={job_id}"
