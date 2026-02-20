@@ -3,6 +3,7 @@ import httpx
 import json
 import re
 from openai import OpenAI
+from ollama import AsyncClient
 from job_processor.config import Config
 from job_processor.logger import get_logger
 
@@ -19,6 +20,8 @@ class LLMService:
                 base_url=Config.OPENAI_BASE_URL,
                 api_key=Config.OPENAI_API_KEY
             )
+        elif self.provider == "ollama":
+            self.ollama_client = AsyncClient(host=Config.OLLAMA_BASE_URL)
         
     async def extract_structured_data(self, job_text: str) -> dict:
         """
@@ -82,31 +85,27 @@ JSON output:"""
 
 
     async def _call_ollama(self, prompt: str) -> dict:
-        url = f"{Config.OLLAMA_BASE_URL}/api/generate"
-        logger.debug(f"Calling Ollama model '{Config.OLLAMA_MODEL}' at {url}")
+        logger.debug(f"Calling Ollama model '{Config.OLLAMA_MODEL}' at {Config.OLLAMA_BASE_URL}")
 
-        payload = {
-            "model": Config.OLLAMA_MODEL,
-            "system": "You are a JSON-only extraction engine. You MUST output ONLY a single valid JSON object. No prose, no explanation, no markdown fences, no preamble. Just the raw JSON object.",
-            "prompt": prompt,
-            "stream": False,
-            "format": "json"
-        }
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(url, json=payload, timeout=6000.0)
-                response.raise_for_status()
-                result = response.json()
+            response = await self.ollama_client.generate(
+                model=Config.OLLAMA_MODEL,
+                system="You are a JSON-only extraction engine. You MUST output ONLY a single valid JSON object. No prose, no explanation, no markdown fences, no preamble. Just the raw JSON object.",
+                prompt=prompt,
+                stream=False,
+                format="json"
+            )
+            
+            # The library returns a Mapping/dict-like object
+            if "response" not in response:
+                logger.error(f"Ollama returned unexpected response (no 'response' key). Full response: {response}")
+                raise KeyError(f"'response' key missing in Ollama output. Got keys: {list(response.keys())}")
 
-            if "response" not in result:
-                logger.error(f"Ollama returned unexpected response (no 'response' key). Full response: {result}")
-                raise KeyError(f"'response' key missing in Ollama output. Got keys: {list(result.keys())}")
-
-            raw_text = result["response"].strip()
+            raw_text = response["response"].strip()
             logger.debug(f"Raw Ollama response (first 500 chars): {raw_text[:500]!r}")
 
             if not raw_text:
-                logger.error(f"Ollama returned an empty 'response' string. Full result: {result}")
+                logger.error(f"Ollama returned an empty 'response' string. Full result: {response}")
                 raise ValueError("Ollama returned an empty response. The model may have timed out or failed to generate output.")
 
             # Primary: direct JSON parse
@@ -125,12 +124,6 @@ JSON output:"""
 
             logger.error(f"Failed to parse JSON from Ollama response. Raw text: {raw_text!r}")
             raise ValueError(f"Could not extract valid JSON from Ollama response: {raw_text[:200]!r}")
-        except httpx.HTTPStatusError as e:
-            logger.error(f"Ollama HTTP error {e.response.status_code}: {e.response.text}", exc_info=True)
-            raise
-        except (json.JSONDecodeError, ValueError) as e:
-            logger.error(f"Failed to parse JSON from Ollama response: {e}", exc_info=True)
-            raise
         except Exception as e:
             logger.error(f"Ollama extraction failed: {e}", exc_info=True)
             raise
