@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     SESSION_SECRET_KEY: str = "resume-matcher-dev"
     LLM_PROVIDER: Optional[str] = "openai" 
     LLM_API_KEY: Optional[str] = None
+    OPENAI_API_KEY: Optional[str] = None
     #LLM_BASE_URL: Optional[str] = "http://localhost:11434"
     #LL_MODEL: Optional[str] = "mistral-nemo"
     LLM_BASE_URL: Optional[str] = "https://openrouter.ai/api/v1"

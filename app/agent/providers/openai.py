@@ -10,7 +10,7 @@ from .base import Provider, EmbeddingProvider
 from ...core import settings
 
 logger = logging.getLogger(__name__)
-load_dotenv(find_dotenv(), override=True)
+# Redundant load_dotenv removed - handled by app.core.settings
 
 class OpenAIProvider(Provider):
     def __init__(self, api_key: str | None = None, model_name: str = settings.LL_MODEL,
@@ -22,8 +22,8 @@ class OpenAIProvider(Provider):
         if "max_tokens" not in opts and "max_output_tokens" not in opts:
             opts["max_tokens"] = 12000
             
-        api_key = os.getenv("OPENAI_API_KEY")
-        print("APIKEY",api_key)
+        api_key = api_key or settings.OPENAI_API_KEY
+        print("APIKEY", api_key)
         if not api_key:
             raise ProviderError("OpenAI API key is missing")
             
@@ -82,7 +82,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         api_key: str | None = None,
         embedding_model: str = settings.EMBEDDING_MODEL,
     ):
-        api_key = api_key or settings.EMBEDDING_API_KEY or os.getenv("OPENAI_API_KEY")
+        api_key = api_key or settings.EMBEDDING_API_KEY or settings.OPENAI_API_KEY
         if not api_key:
             raise ProviderError("OpenAI API key is missing")
         self._client = OpenAI(api_key=api_key)

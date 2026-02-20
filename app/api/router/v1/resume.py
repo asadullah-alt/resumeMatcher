@@ -16,7 +16,7 @@ from fastapi import (
     Query,
 )
 
-from app.core import get_db_session
+from app.core import get_db_session, settings
 from app.models import ProcessedJob
 from app.services import (
     ResumeService,
@@ -107,6 +107,9 @@ async def upload_resume(
             detail=f"File size exceeds the 2 MB limit. Current size: {len(file_bytes) / 1024 / 1024:.2f} MB",
         )
     
+    logger.info(f"\n========== LLM PROVIDER: {settings.LLM_PROVIDER}==========\n")
+    logger.info(f"\n============= LLM API KEY ==============\n {settings.LLM_API_KEY}\n")
+
     try:
         resume_service = ResumeService(db)
         resume_id = await resume_service.convert_and_store_resume(

@@ -44,6 +44,7 @@ def create_app() -> FastAPI:
         redoc_url="/api/redoc",
         openapi_url="/api/openapi.json",
         lifespan=lifespan,
+        debug=settings.ENV == "development",
     )
 
     @app.get("/api/scalar", include_in_schema=False)
