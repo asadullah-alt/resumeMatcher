@@ -1,4 +1,4 @@
-import asyncio
+
 import httpx
 import json
 import re
@@ -79,49 +79,12 @@ JSON output:"""
             logger.error(f"OpenAI extraction failed: {e}", exc_info=True)
             raise
 
-    async def _wait_for_gpu_idle(
-        self,
-        threshold: int = 20,
-        poll_interval: float = 5.0,
-        timeout: float = 300.0,
-    ) -> None:
-        """
-        Block (asynchronously) until GPU utilization drops to *threshold* % or below.
-        Falls back silently if CUDA is not available (CPU-only or no nvidia-smi).
 
-        :param threshold:     Maximum GPU % load to accept before proceeding.
-        :param poll_interval: Seconds between consecutive polls.
-        :param timeout:       Give up waiting after this many seconds and proceed anyway.
-        """
-        try:
-            import torch
-            if not torch.cuda.is_available():
-                return  # no GPU — nothing to wait for
-        except ImportError:
-            return
-
-        elapsed = 0.0
-        while elapsed < timeout:
-            utilization = torch.cuda.utilization()  # integer 0-100
-            logger.debug(f"GPU utilization: {utilization}% (threshold: {threshold}%)")
-            if utilization <= threshold:
-                logger.info(f"GPU at {utilization}% — proceeding with Ollama call.")
-                return
-            logger.info(
-                f"GPU busy at {utilization}% (> {threshold}%). "
-                f"Waiting {poll_interval}s before retrying …"
-            )
-            await asyncio.sleep(poll_interval)
-            elapsed += poll_interval
-
-        logger.warning(
-            f"GPU did not drop below {threshold}% within {timeout}s — proceeding anyway."
-        )
 
     async def _call_ollama(self, prompt: str) -> dict:
         url = f"{Config.OLLAMA_BASE_URL}/api/generate"
         logger.debug(f"Calling Ollama model '{Config.OLLAMA_MODEL}' at {url}")
-        await self._wait_for_gpu_idle(threshold=20, poll_interval=5.0, timeout=300.0)
+
         payload = {
             "model": Config.OLLAMA_MODEL,
             "system": "You are a JSON-only extraction engine. You MUST output ONLY a single valid JSON object. No prose, no explanation, no markdown fences, no preamble. Just the raw JSON object.",
