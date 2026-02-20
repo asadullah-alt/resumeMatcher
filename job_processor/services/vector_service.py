@@ -16,6 +16,9 @@ class VectorService:
 
         # Initialize OpenAI Client for Dense
         logger.info(f"Initializing dense embedding client (model: {Config.DENSE_EMBEDDING_MODEL})")
+        logger.info(f"[VectorService] OPENAI_BASE_URL={Config.OPENAI_BASE_URL!r}")
+        api_key = Config.OPENAI_API_KEY or ""
+        logger.info(f"[VectorService] OPENAI_API_KEY={'<empty>' if not api_key else api_key[:8] + '...' + api_key[-4:]}")
         self.openai_client = OpenAI(
             base_url=Config.OPENAI_BASE_URL,
             api_key=Config.OPENAI_API_KEY

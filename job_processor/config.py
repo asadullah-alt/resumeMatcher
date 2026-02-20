@@ -21,5 +21,5 @@ class Config:
     OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gpt-oss:20b")
     
     # Embedding Models
-    DENSE_EMBEDDING_MODEL = "text-embedding-3-small"
+    DENSE_EMBEDDING_MODEL = "openai/text-embedding-3-small"
     SPLADE_MODEL_ID = "naver/splade-cocondenser-ensembledistil"
