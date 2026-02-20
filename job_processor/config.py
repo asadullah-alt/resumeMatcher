@@ -18,7 +18,7 @@ class Config:
     
     # Ollama
     OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gpt-oss-safeguard:20b")
+    OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gpt-oss:20b")
     
     # Embedding Models
     DENSE_EMBEDDING_MODEL = "text-embedding-3-small"
