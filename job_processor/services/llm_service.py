@@ -1,11 +1,16 @@
 
+import os
 import httpx
 import json
 import re
 from openai import OpenAI
 from ollama import AsyncClient
+from dotenv import load_dotenv, find_dotenv
+from fastapi.concurrency import run_in_threadpool
 from job_processor.config import Config
 from job_processor.logger import get_logger
+
+load_dotenv(find_dotenv(), override=True)
 
 logger = get_logger("job_processor.llm_service")
 
@@ -64,18 +69,30 @@ JSON output:"""
         else:
             raise ValueError(f"Unsupported LLM provider: {self.provider}")
 
+    def _generate_openai_sync(self, prompt: str) -> dict:
+        """Synchronous OpenAI call — runs inside a thread via run_in_threadpool."""
+        api_key = os.getenv("OPENROUTER_API_KEY") or Config.OPENAI_API_KEY
+        if not api_key or api_key == "YOUR_OPENROUTER_API_KEY":
+            raise ValueError("OpenAI/OpenRouter API key is missing. Set OPENROUTER_API_KEY in your .env file.")
+
+        client = OpenAI(
+            api_key=api_key,
+            base_url=Config.OPENAI_BASE_URL,
+        )
+        response = client.chat.completions.create(
+            model=Config.OPENAI_MODEL,
+            messages=[
+                {"role": "system", "content": "You are a specialized job data extractor. Always return JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            response_format={"type": "json_object"},
+        )
+        return json.loads(response.choices[0].message.content)
+
     async def _call_openai(self, prompt: str) -> dict:
-        logger.debug(f"Calling OpenAI model: {Config.OPENAI_MODEL}")
+        logger.debug(f"Calling OpenAI/OpenRouter model: {Config.OPENAI_MODEL} at {Config.OPENAI_BASE_URL}")
         try:
-            response = self.client.chat.completions.create(
-                model=Config.OPENAI_MODEL,
-                messages=[
-                    {"role": "system", "content": "You are a specialized job data extractor. Always return JSON."},
-                    {"role": "user", "content": prompt}
-                ],
-                response_format={"type": "json_object"}
-            )
-            result = json.loads(response.choices[0].message.content)
+            result = await run_in_threadpool(self._generate_openai_sync, prompt)
             logger.info("OpenAI extraction successful")
             return result
         except Exception as e:
