@@ -92,8 +92,7 @@ JSON output:"""
                 model=Config.OLLAMA_MODEL,
                 system="You are a JSON-only extraction engine. You MUST output ONLY a single valid JSON object. No prose, no explanation, no markdown fences, no preamble. Just the raw JSON object.",
                 prompt=prompt,
-                stream=False,
-                format="json"
+                stream=False
             )
             
             # The library returns a Mapping/dict-like object
