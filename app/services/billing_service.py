@@ -30,7 +30,11 @@ class BillingService:
             Updated user document (saved to database if reset occurred)
         """
         now = datetime.now(UTC)
-        days_since_reset = (now - user.last_credit_reset).days
+        last_reset = user.last_credit_reset
+        # MongoDB returns naive datetimes; make it UTC-aware before comparison
+        if last_reset.tzinfo is None:
+            last_reset = last_reset.replace(tzinfo=UTC)
+        days_since_reset = (now - last_reset).days
         
         if days_since_reset >= 30:
             # Calculate rollover from unused credits
