@@ -4,6 +4,7 @@ import traceback
 from typing import List
 from fastapi import APIRouter, status, Header, HTTPException, Depends
 from app.models.job import Job, ProcessedOpenJobs
+from job_processor.models.job import OpenJobsVector
 from app.services.open_job_service import OpenJobService
 from pydantic import BaseModel
 from app.models.user import User
@@ -124,3 +125,12 @@ async def create_open_jobs(jobs: List[Job], admin: User = Depends(get_admin_user
         processed_jobs=processed_jobs,
         message=f"Successfully processed batch. Inserted: {inserted_count}, Skipped: {skipped_count}"
     )
+
+@router.get("/vectors", response_model=List[OpenJobsVector], status_code=status.HTTP_200_OK)
+async def get_open_jobs_vectors(admin: User = Depends(get_admin_user)):
+    """
+    Returns all OpenJobsVector documents.
+    Requires X-Admin-Email and X-Admin-Token headers.
+    """
+    vectors = await OpenJobsVector.find_all().to_list()
+    return vectors
