@@ -2,7 +2,7 @@ import asyncio
 import motor.motor_asyncio
 from beanie import init_beanie
 from job_processor.config import Config
-from job_processor.models.job import Job, ProcessedOpenJobs, OpenJobsVector
+from job_processor.models.job import Job, ProcessedOpenJobs, OpenJobsVector, UserJobMatch
 from job_processor.services.processor import JobProcessor
 from job_processor.logger import get_logger
 
@@ -18,8 +18,8 @@ async def watch_jobs():
     db = client[Config.DB_NAME]
     
     # Initialize Beanie
-    await init_beanie(database=db, document_models=[Job, ProcessedOpenJobs, OpenJobsVector])
-    logger.info("Beanie initialized — models: Job, ProcessedOpenJobs, OpenJobsVector")
+    await init_beanie(database=db, document_models=[Job, ProcessedOpenJobs, OpenJobsVector, UserJobMatch])
+    logger.info("Beanie initialized — models: Job, ProcessedOpenJobs, OpenJobsVector, UserJobMatch")
     
     processor = JobProcessor()
     logger.info("Service started. Listening for changes in ProcessedOpenJobs...")

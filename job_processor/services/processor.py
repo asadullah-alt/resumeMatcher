@@ -471,10 +471,10 @@ class JobProcessor:
             percentage = min(match["score"] * 100, 100.0)
             
             # Upsert match result
-            match_doc = await UserJobMatch.find_one(
-                UserJobMatch.user_id == str(user_id),
-                UserJobMatch.job_id == str(job_id)
-            )
+            match_doc = await UserJobMatch.find_one({
+                "user_id": str(user_id),
+                "job_id": str(job_id)
+            })
             
             if match_doc:
                 match_doc.percentage_match = percentage
