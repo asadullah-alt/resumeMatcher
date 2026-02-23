@@ -464,7 +464,7 @@ class JobProcessor:
             percentage = min(match["score"] * 100, 100.0)
             
             # Fetch job_url from ProcessedOpenJobs
-            processed_job = await ProcessedOpenJobs.find_one(ProcessedOpenJobs.job_id == str(job_id))
+            processed_job = await ProcessedOpenJobs.find_one({"job_id": str(job_id)})
             job_url = processed_job.job_url if processed_job else None
 
             # Check if match already exists
