@@ -468,24 +468,30 @@ class JobProcessor:
             # If RRF is used, we might need a different heuristic or just store the score.
             # Let's use a simple normalization for now: min(score * 100, 100)
             
-            percentage = min(match["score"] * 100, 100.0)
+        # 4. Save match results in MongoDB (skip existing)
+        results = []
+        for match in matches:
+            job_id = match["job_id"]
             
-            # Upsert match result
-            match_doc = await UserJobMatch.find_one({
+            # Check if match already exists
+            exists = await UserJobMatch.find_one({
                 "user_id": str(user_id),
                 "job_id": str(job_id)
             })
             
-            if match_doc:
-                match_doc.percentage_match = percentage
-                await match_doc.save()
-            else:
-                match_doc = UserJobMatch(
-                    user_id=str(user_id),
-                    job_id=str(job_id),
-                    percentage_match=percentage
-                )
-                await match_doc.insert()
+            if exists:
+                logger.info(f"[User {user_id}] Match with job {job_id} already exists — skipping")
+                results.append(exists)
+                continue
+
+            percentage = min(match["score"] * 100, 100.0)
+            
+            match_doc = UserJobMatch(
+                user_id=str(user_id),
+                job_id=str(job_id),
+                percentage_match=percentage
+            )
+            await match_doc.insert()
             results.append(match_doc)
 
         logger.info(f"[User {user_id}] Successfully matched with {len(results)} jobs")
