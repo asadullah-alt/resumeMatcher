@@ -417,14 +417,14 @@ class JobProcessor:
             payload=payload,
         )
         logger.info(f"[Job {job_id}] Pipeline completed successfully — vector upserted to Qdrant")
-    async def match_user_resumes_to_jobs(self, user_id: str):
+    async def match_user_resumes_to_jobs(self, user_id: str, overwrite: bool = False):
         """
         Matches the user's default resume vectors against existing open job vectors.
         Saves the match percentages to UserJobMatch collection.
         """
         from job_processor.models.job import UserJobMatch
         
-        logger.info(f"[User {user_id}] Starting user-job matching process")
+        logger.info(f"[User {user_id}] Starting user-job matching process (overwrite={overwrite})")
         
         # 1. Find default resume for this user
         resume = await ProcessedResume.find_one(
@@ -435,7 +435,7 @@ class JobProcessor:
         if not resume:
             logger.warning(f"[User {user_id}] No default processed resume found — matching aborted")
             return
-
+        
         resume_id = resume.resume_id
         logger.info(f"[User {user_id}] Found default resume {resume_id}")
 
@@ -443,8 +443,6 @@ class JobProcessor:
         point_data = self.qdrant.get_point_by_id(self.qdrant.resume_collection, resume_id)
         if not point_data or "vectors" not in point_data:
             logger.warning(f"[User {user_id}] Vectors for resume {resume_id} not found in Qdrant — matching aborted")
-            # If not in Qdrant, we might need to re-process if default is true, 
-            # but let's assume pipeline handles it for now.
             return
 
         vectors = point_data["vectors"]
@@ -463,16 +461,12 @@ class JobProcessor:
         results = []
         for match in matches:
             job_id = match["job_id"]
-            # Qdrant search results scores are relative. For RRF, they are usually small (e.g. 0.05).
-            # For simplicity, if cosine was used, percentage = (score + 1) / 2 * 100
-            # If RRF is used, we might need a different heuristic or just store the score.
-            # Let's use a simple normalization for now: min(score * 100, 100)
+            percentage = min(match["score"] * 100, 100.0)
             
-        # 4. Save match results in MongoDB (skip existing)
-        results = []
-        for match in matches:
-            job_id = match["job_id"]
-            
+            # Fetch job_url from ProcessedOpenJobs
+            processed_job = await ProcessedOpenJobs.find_one(ProcessedOpenJobs.job_id == str(job_id))
+            job_url = processed_job.job_url if processed_job else None
+
             # Check if match already exists
             exists = await UserJobMatch.find_one({
                 "user_id": str(user_id),
@@ -480,19 +474,29 @@ class JobProcessor:
             })
             
             if exists:
-                logger.info(f"[User {user_id}] Match with job {job_id} already exists — skipping")
-                results.append(exists)
-                continue
+                if not overwrite:
+                    logger.info(f"[User {user_id}] Match with job {job_id} already exists — skipping")
+                    results.append(exists)
+                    continue
+                else:
+                    logger.info(f"[User {user_id}] Match with job {job_id} exists — updating")
+                    exists.percentage_match = percentage
+                    exists.job_url = job_url
+                    await exists.save()
+                    results.append(exists)
+                    continue
 
-            percentage = min(match["score"] * 100, 100.0)
-            
             match_doc = UserJobMatch(
                 user_id=str(user_id),
                 job_id=str(job_id),
+                job_url=job_url,
                 percentage_match=percentage
             )
             await match_doc.insert()
             results.append(match_doc)
+
+        # Sort results by percentage match descending
+        results.sort(key=lambda x: x.percentage_match, reverse=True)
 
         logger.info(f"[User {user_id}] Successfully matched with {len(results)} jobs")
         return results

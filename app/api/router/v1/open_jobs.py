@@ -189,6 +189,7 @@ async def process_all_user_resumes(
 @router.post("/match/user", status_code=status.HTTP_200_OK)
 async def match_user_to_jobs(
     email: str, 
+    overwrite: bool = False,
     admin: User = Depends(get_admin_user)
 ):
     """
@@ -204,7 +205,7 @@ async def match_user_to_jobs(
     processor = JobProcessor()
     
     try:
-        matches = await processor.match_user_resumes_to_jobs(user_id)
+        matches = await processor.match_user_resumes_to_jobs(user_id, overwrite=overwrite)
         if matches is None:
              raise HTTPException(status_code=404, detail=f"No default resume or vectors found for user {email}.")
              

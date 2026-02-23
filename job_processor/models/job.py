@@ -156,6 +156,7 @@ class UserJobMatch(Document):
     """Stores the match result between a user's resume and an open job."""
     user_id: str
     job_id: str
+    job_url: Optional[str] = None
     percentage_match: float
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
