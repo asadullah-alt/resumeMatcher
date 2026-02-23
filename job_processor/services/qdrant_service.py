@@ -152,6 +152,7 @@ class QdrantService:
                     ),
                 ],
                 query=qmodels.FusionQuery(fusion=qmodels.Fusion.RRF),
+                limit=limit,
             )
 
             output = []
