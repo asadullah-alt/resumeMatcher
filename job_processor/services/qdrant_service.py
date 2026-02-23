@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qmodels
