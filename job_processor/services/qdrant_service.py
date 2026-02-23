@@ -105,3 +105,63 @@ class QdrantService:
         except Exception as e:
             logger.error(f"Error checking point existence in Qdrant: {e}")
             return False
+
+    def get_point_by_id(self, collection_name: str, entity_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieves a point (including vectors) by its original entity ID."""
+        point_id = _job_uuid(entity_id)
+        try:
+            results = self.client.retrieve(
+                collection_name=collection_name,
+                ids=[point_id],
+                with_payload=True,
+                with_vectors=True,
+            )
+            if results:
+                return {
+                    "payload": results[0].payload,
+                    "vectors": results[0].vector
+                }
+            return None
+        except Exception as e:
+            logger.error(f"Error retrieving point from Qdrant: {e}")
+            return None
+
+    def search_jobs(self, dense_vector: List[float], sparse_vector: Dict[str, Any], limit: int = 20) -> List[Dict[str, Any]]:
+        """
+        Performs a hybrid search (dense + sparse) on the jobs collection.
+        Uses Reciprocal Rank Fusion or simple score addition if not available.
+        """
+        try:
+            sparse = qmodels.SparseVector(
+                indices=sparse_vector["indices"],
+                values=sparse_vector["values"],
+            )
+
+            results = self.client.query_points(
+                collection_name=self.job_collection,
+                prefetch=[
+                    qmodels.Prefetch(
+                        query=dense_vector,
+                        using="dense",
+                        limit=limit,
+                    ),
+                    qmodels.Prefetch(
+                        query=sparse,
+                        using="sparse",
+                        limit=limit,
+                    ),
+                ],
+                query=qmodels.FusionQuery(fusion=qmodels.Fusion.RRF),
+            )
+
+            output = []
+            for hit in results.points:
+                output.append({
+                    "job_id": hit.payload.get("job_id"),
+                    "score": hit.score,
+                    "payload": hit.payload
+                })
+            return output
+        except Exception as e:
+            logger.error(f"Error searching Qdrant: {e}")
+            return []

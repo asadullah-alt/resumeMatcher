@@ -417,3 +417,76 @@ class JobProcessor:
             payload=payload,
         )
         logger.info(f"[Job {job_id}] Pipeline completed successfully — vector upserted to Qdrant")
+    async def match_user_resumes_to_jobs(self, user_id: str):
+        """
+        Matches the user's default resume vectors against existing open job vectors.
+        Saves the match percentages to UserJobMatch collection.
+        """
+        from job_processor.models.job import UserJobMatch
+        
+        logger.info(f"[User {user_id}] Starting user-job matching process")
+        
+        # 1. Find default resume for this user
+        resume = await ProcessedResume.find_one(
+            ProcessedResume.user_id == str(user_id),
+            ProcessedResume.default == True
+        )
+        
+        if not resume:
+            logger.warning(f"[User {user_id}] No default processed resume found — matching aborted")
+            return
+
+        resume_id = resume.resume_id
+        logger.info(f"[User {user_id}] Found default resume {resume_id}")
+
+        # 2. Retrieve vectors from Qdrant
+        point_data = self.qdrant.get_point_by_id(self.qdrant.resume_collection, resume_id)
+        if not point_data or "vectors" not in point_data:
+            logger.warning(f"[User {user_id}] Vectors for resume {resume_id} not found in Qdrant — matching aborted")
+            # If not in Qdrant, we might need to re-process if default is true, 
+            # but let's assume pipeline handles it for now.
+            return
+
+        vectors = point_data["vectors"]
+        dense_vec = vectors.get("dense")
+        sparse_vec = vectors.get("sparse")
+
+        if not dense_vec or not sparse_vec:
+            logger.warning(f"[User {user_id}] Incomplete vectors for resume {resume_id} — matching aborted")
+            return
+
+        # 3. Search Qdrant for matching jobs
+        logger.info(f"[User {user_id}] Searching for top matching jobs")
+        matches = self.qdrant.search_jobs(dense_vec, sparse_vec.model_dump() if hasattr(sparse_vec, "model_dump") else sparse_vec, limit=50)
+
+        # 4. Save/Update match results in MongoDB
+        results = []
+        for match in matches:
+            job_id = match["job_id"]
+            # Qdrant search results scores are relative. For RRF, they are usually small (e.g. 0.05).
+            # For simplicity, if cosine was used, percentage = (score + 1) / 2 * 100
+            # If RRF is used, we might need a different heuristic or just store the score.
+            # Let's use a simple normalization for now: min(score * 100, 100)
+            
+            percentage = min(match["score"] * 100, 100.0)
+            
+            # Upsert match result
+            match_doc = await UserJobMatch.find_one(
+                UserJobMatch.user_id == str(user_id),
+                UserJobMatch.job_id == str(job_id)
+            )
+            
+            if match_doc:
+                match_doc.percentage_match = percentage
+                await match_doc.save()
+            else:
+                match_doc = UserJobMatch(
+                    user_id=str(user_id),
+                    job_id=str(job_id),
+                    percentage_match=percentage
+                )
+                await match_doc.insert()
+            results.append(match_doc)
+
+        logger.info(f"[User {user_id}] Successfully matched with {len(results)} jobs")
+        return results

@@ -4,7 +4,7 @@ import traceback
 from typing import List
 from fastapi import APIRouter, status, Header, HTTPException, Depends
 from app.models.job import Job, ProcessedOpenJobs
-from job_processor.models.job import OpenJobsVector
+from job_processor.models.job import OpenJobsVector, UserJobMatch
 from app.services.open_job_service import OpenJobService
 from pydantic import BaseModel
 from app.models.user import User
@@ -185,6 +185,32 @@ async def process_all_user_resumes(
         "message": f"Batch process completed. Processed: {processed_count}, Errors: {len(errors)}",
         "error_user_ids": errors
     }
+
+@router.post("/match/user", status_code=status.HTTP_200_OK)
+async def match_user_to_jobs(
+    user_id: str, 
+    admin: User = Depends(get_admin_user)
+):
+    """
+    Matches the user's default resume vectors against existing open job vectors.
+    Saves the match percentages to UserJobMatch collection.
+    """
+    from job_processor.services.processor import JobProcessor
+    processor = JobProcessor()
+    
+    try:
+        matches = await processor.match_user_resumes_to_jobs(user_id)
+        if matches is None:
+             raise HTTPException(status_code=404, detail="No default resume or vectors found for user.")
+             
+        return {
+            "message": f"Successfully matched user {user_id} with jobs.",
+            "match_count": len(matches),
+            "matches": matches
+        }
+    except Exception as e:
+        logger.error(f"Failed to match user {user_id} with jobs: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Internal matching error: {str(e)}")
 
 @router.get("/vectors", response_model=List[OpenJobsVector], status_code=status.HTTP_200_OK)
 async def get_open_jobs_vectors(admin: User = Depends(get_admin_user)):

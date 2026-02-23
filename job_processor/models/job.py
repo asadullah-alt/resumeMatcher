@@ -1,6 +1,6 @@
 from __future__ import annotations
 import enum
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import Optional, List, Dict, Any
 from beanie import Document
 from pydantic import Field, BaseModel, ConfigDict
@@ -148,6 +148,21 @@ class OpenJobsVector(Document):
     class Settings:
         name = "OpenJobsVector"
         indexes = [
+            "job_id",
+            "created_at"
+        ]
+
+class UserJobMatch(Document):
+    """Stores the match result between a user's resume and an open job."""
+    user_id: str
+    job_id: str
+    percentage_match: float
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+    class Settings:
+        name = "UserJobMatch"
+        indexes = [
+            "user_id",
             "job_id",
             "created_at"
         ]
