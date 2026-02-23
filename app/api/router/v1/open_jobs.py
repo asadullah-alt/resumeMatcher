@@ -188,28 +188,33 @@ async def process_all_user_resumes(
 
 @router.post("/match/user", status_code=status.HTTP_200_OK)
 async def match_user_to_jobs(
-    user_id: str, 
+    email: str, 
     admin: User = Depends(get_admin_user)
 ):
     """
     Matches the user's default resume vectors against existing open job vectors.
     Saves the match percentages to UserJobMatch collection.
     """
+    user = await User.find_one({"local.email": email})
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User with email {email} not found")
+
+    user_id = str(user.id)
     from job_processor.services.processor import JobProcessor
     processor = JobProcessor()
     
     try:
         matches = await processor.match_user_resumes_to_jobs(user_id)
         if matches is None:
-             raise HTTPException(status_code=404, detail="No default resume or vectors found for user.")
+             raise HTTPException(status_code=404, detail=f"No default resume or vectors found for user {email}.")
              
         return {
-            "message": f"Successfully matched user {user_id} with jobs.",
+            "message": f"Successfully matched user {email} with jobs.",
             "match_count": len(matches),
             "matches": matches
         }
     except Exception as e:
-        logger.error(f"Failed to match user {user_id} with jobs: {e}\n{traceback.format_exc()}")
+        logger.error(f"Failed to match user {email} with jobs: {e}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Internal matching error: {str(e)}")
 
 @router.get("/vectors", response_model=List[OpenJobsVector], status_code=status.HTTP_200_OK)
