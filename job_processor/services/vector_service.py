@@ -57,19 +57,29 @@ class VectorService:
         cols = torch.nonzero(final_sparse_vec).squeeze()
         if cols.dim() == 0:
             cols = cols.unsqueeze(0)
-            
+
+        col_ids = cols.tolist()
         weights = final_sparse_vec[cols].tolist()
-        tokens = self.tokenizer.convert_ids_to_tokens(cols.tolist())
-        
+        tokens = self.tokenizer.convert_ids_to_tokens(col_ids)
+
         token_weights = {}
+        sparse_indices = []
+        sparse_values = []
         total_weight = 0.0
-        for token, weight in zip(tokens, weights):
+        for token, idx, weight in zip(tokens, col_ids, weights):
             if weight > 0.05:
                 token_weights[token] = round(weight, 4)
+                sparse_indices.append(idx)
+                sparse_values.append(round(weight, 4))
                 total_weight += weight
 
         logger.debug(f"SPLADE vector: {len(token_weights)} active tokens, total weight={round(total_weight, 4)}")
-        return {"weight": round(total_weight, 4), "tokens": token_weights}
+        return {
+            "weight": round(total_weight, 4),
+            "tokens": token_weights,
+            "indices": sparse_indices,   # integer vocab IDs — ready for Qdrant SparseVector
+            "values": sparse_values,     # corresponding float weights
+        }
 
     def get_dense_vector(self, text: str, chunk_size: int = 4000) -> List[float]:
         """

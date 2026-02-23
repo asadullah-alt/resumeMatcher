@@ -9,3 +9,4 @@ python-dotenv
 pydantic>=2.0
 spacy
 ollama
+qdrant-client

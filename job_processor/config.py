@@ -23,3 +23,10 @@ class Config:
     # Embedding Models
     DENSE_EMBEDDING_MODEL = "openai/text-embedding-3-small"
     SPLADE_MODEL_ID = "naver/splade-cocondenser-ensembledistil"
+
+    # Qdrant
+    QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
+    QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
+    QDRANT_JOB_COLLECTION = os.getenv("QDRANT_JOB_COLLECTION", "open_jobs_vectors")
+    QDRANT_RESUME_COLLECTION = os.getenv("QDRANT_RESUME_COLLECTION", "user_resumes_vectors")
+    QDRANT_DENSE_DIM = int(os.getenv("QDRANT_DENSE_DIM", "1536"))  # openai/text-embedding-3-small

@@ -1,8 +1,10 @@
 import uuid
 from typing import List, Dict, Any
-from job_processor.models.job import Job, ProcessedOpenJobs, OpenJobsVector, CompanyProfile, Location, Qualifications, RemoteStatusEnum
+from job_processor.models.job import Job, ProcessedOpenJobs, CompanyProfile, Location as JobLocation, Qualifications, RemoteStatusEnum
+from app.models.resume import ProcessedResume, Location as ResumeLocation
 from job_processor.services.llm_service import LLMService
 from job_processor.services.vector_service import VectorService
+from job_processor.services.qdrant_service import QdrantService
 from job_processor.logger import get_logger
 
 import os
@@ -33,6 +35,7 @@ class JobProcessor:
         logger.info("Initializing JobProcessor")
         self.llm = LLMService()
         self.vector_service = VectorService()
+        self.qdrant = QdrantService()
         self.db_lookup = {v['skill_name'].lower(): v['skill_name'] for k, v in SKILL_DB.items()}
         logger.info(f"SKILL_DB loaded with {len(self.db_lookup)} entries")
 
@@ -119,6 +122,99 @@ class JobProcessor:
         logger.debug(f"Flattened text length: {len(flattened)} chars")
         return flattened
 
+    def flatten_resume_data(self, resume: ProcessedResume) -> str:
+        """
+        Flattens structured resume data into natural language for vectorization.
+        """
+        parts = []
+        
+        if resume.summary:
+            parts.append(resume.summary)
+            
+        # Skills
+        if resume.skills:
+            skill_names = [s.skill_name for s in resume.skills if s.skill_name]
+            if skill_names:
+                parts.append("Skills: " + ", ".join(skill_names))
+                
+        # Experience
+        for exp in resume.experiences:
+            exp_parts = []
+            if exp.job_title:
+                exp_parts.append(f"worked as {exp.job_title}")
+            if exp.company:
+                exp_parts.append(f"at {exp.company}")
+            if exp.description:
+                exp_parts.append(". ".join(exp.description))
+            if exp_parts:
+                parts.append("Experience: " + " ".join(exp_parts))
+                
+        # Projects
+        for proj in resume.projects:
+            proj_parts = []
+            if proj.project_name:
+                proj_parts.append(f"Project: {proj.project_name}")
+            if proj.description:
+                proj_parts.append(proj.description)
+            if proj_parts:
+                parts.append(" ".join(proj_parts))
+
+        # Education
+        for edu in resume.education:
+            edu_parts = []
+            if edu.degree:
+                edu_parts.append(edu.degree)
+            if edu.field_of_study:
+                edu_parts.append(f"in {edu.field_of_study}")
+            if edu.institution:
+                edu_parts.append(f"from {edu.institution}")
+            if edu_parts:
+                parts.append("Education: " + " ".join(edu_parts))
+
+        flattened = " ".join(parts)
+        logger.debug(f"Flattened resume length: {len(flattened)} chars")
+        return flattened
+
+    async def _process_new_resume(self, resume: ProcessedResume):
+        """
+        Pipeline for processing resumes: Flattening -> Vectorization -> Save to Qdrant.
+        Only processes if resume.default is True.
+        """
+        if not resume.default:
+            logger.info(f"[Resume {resume.resume_id}] Not default resume — skipping vectorization")
+            return
+
+        resume_id = resume.resume_id
+        logger.info(f"[Resume {resume_id}] Starting resume processing pipeline")
+
+        # 1. Flattening
+        logger.info(f"[Resume {resume_id}] Step 1/2 — Flattening resume data")
+        flattened = self.flatten_resume_data(resume)
+
+        # 2. Vectorize + Save to Qdrant
+        logger.info(f"[Resume {resume_id}] Step 2/2 — Generating vectors and upserting to Qdrant")
+        dense_vector = self.vector_service.get_dense_vector(flattened)
+        sparse_vector = self.vector_service.get_splade_vector(flattened)
+
+        # Prepare payload
+        payload = resume.dict()
+        # Ensure job_description equivalent is set for consistency if needed, 
+        # or just use the flattened content
+        payload["resume_text"] = flattened
+        
+        # Convert date to string for JSON serialization if necessary
+        if "processed_at" in payload and payload["processed_at"]:
+            payload["processed_at"] = payload["processed_at"].isoformat()
+
+        await self.qdrant.upsert_vector(
+            collection_name=self.qdrant.resume_collection,
+            entity_id=resume_id,
+            dense_vector=dense_vector,
+            sparse_vector=sparse_vector,
+            payload=payload,
+        )
+        logger.info(f"[Resume {resume_id}] Resume pipeline completed successfully — upserted to Qdrant")
+
     async def process_new_job(self, source_job: Job, processed_job: ProcessedOpenJobs):
         """
         The main pipeline: LLM Extraction -> Skill Standardization -> Flattening -> Vectorization -> Save to OpenJobsVector.
@@ -141,15 +237,23 @@ class JobProcessor:
         logger.info(f"[Job {job_id}] Step 3/4 — Flattening data for vectorization")
         flattened = self.flatten_data(raw_metadata, source_job.content)
 
-        # 4. Vectorize + Save
-        logger.info(f"[Job {job_id}] Step 4/4 — Generating vectors and saving to OpenJobsVector")
-        vector_doc = OpenJobsVector(
-            job_id=processed_job.job_id,
-            dense_vector=self.vector_service.get_dense_vector(flattened),
-            sparse_vector=self.vector_service.get_splade_vector(flattened),
-            job_description=flattened,
-            metadata=raw_metadata
-        )
+        # 4. Vectorize + Save to Qdrant
+        logger.info(f"[Job {job_id}] Step 4/4 — Generating vectors and upserting to Qdrant")
+        dense_vector = self.vector_service.get_dense_vector(flattened)
+        sparse_vector = self.vector_service.get_splade_vector(flattened)
 
-        await vector_doc.insert()
-        logger.info(f"[Job {job_id}] Pipeline completed successfully — OpenJobsVector saved")
+        # job_id lives in the payload — no separate top-level field
+        payload = {
+            **raw_metadata,
+            "job_id": processed_job.job_id,
+            "job_description": flattened,
+        }
+
+        await self.qdrant.upsert_vector(
+            collection_name=self.qdrant.job_collection,
+            entity_id=processed_job.job_id,
+            dense_vector=dense_vector,
+            sparse_vector=sparse_vector,
+            payload=payload,
+        )
+        logger.info(f"[Job {job_id}] Pipeline completed successfully — vector upserted to Qdrant")
