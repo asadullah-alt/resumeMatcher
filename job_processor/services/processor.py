@@ -352,17 +352,18 @@ class JobProcessor:
         }
 
         # Prepare final payload
+        # Use model_dump_json() then loads() to ensure all custom types (like PydanticObjectId) 
+        # are converted to JSON-safe primitives (strings, etc.)
+        full_resume_json = json.loads(resume.model_dump_json())
+
         payload = {
             "resume_id": resume_id,
-            "user_id": resume.user_id,
+            "user_id": str(resume.user_id),
             "resume_name": resume.resume_name,
             "resume_text": flattened,
             "metadata": resume_metadata,
-            "full_resume": resume.dict()
+            "full_resume": full_resume_json
         }
-
-        if payload["full_resume"].get("processed_at"):
-            payload["full_resume"]["processed_at"] = payload["full_resume"]["processed_at"].isoformat()
 
         await self.qdrant.upsert_vector(
             collection_name=self.qdrant.resume_collection,
