@@ -366,7 +366,7 @@ class JobProcessor:
             "full_resume": full_resume_json
         }
 
-        await self.qdrant.upsert_vector(
+        self.qdrant.upsert_vector(
             collection_name=self.qdrant.resume_collection,
             entity_id=resume_id,
             dense_vector=dense_vector,
@@ -409,7 +409,7 @@ class JobProcessor:
             "job_description": flattened,
         }
 
-        await self.qdrant.upsert_vector(
+        self.qdrant.upsert_vector(
             collection_name=self.qdrant.job_collection,
             entity_id=processed_job.job_id,
             dense_vector=dense_vector,
