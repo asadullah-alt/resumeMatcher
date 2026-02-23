@@ -126,6 +126,66 @@ async def create_open_jobs(jobs: List[Job], admin: User = Depends(get_admin_user
         message=f"Successfully processed batch. Inserted: {inserted_count}, Skipped: {skipped_count}"
     )
 
+from app.models.resume import ProcessedResume
+
+@router.post("/resumes/process/user", status_code=status.HTTP_200_OK)
+async def process_user_resume(
+    email: str, 
+    overwrite: bool = False, 
+    admin: User = Depends(get_admin_user)
+):
+    """
+    Triggers the vectorization pipeline for a specific user's default resume.
+    """
+    user = await User.find_one({"local.email": email})
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User with email {email} not found")
+
+    resume = await ProcessedResume.find_one({"user_id": str(user.id), "default": True})
+    if not resume:
+        raise HTTPException(status_code=404, detail=f"No default ProcessedResume found for user {email}")
+
+    from job_processor.services.processor import JobProcessor
+    processor = JobProcessor()
+    
+    try:
+        await processor._process_new_resume(resume, overwrite=overwrite)
+        return {"message": f"Successfully triggered processing for {email}'s default resume."}
+    except Exception as e:
+        logger.error(f"Failed to process resume for {email}: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Internal processing error: {str(e)}")
+
+@router.post("/resumes/process/all", status_code=status.HTTP_200_OK)
+async def process_all_user_resumes(
+    overwrite: bool = False, 
+    admin: User = Depends(get_admin_user)
+):
+    """
+    Iterates through all users and triggers the vectorization pipeline 
+    for their default ProcessedResumes one-by-one.
+    """
+    from job_processor.services.processor import JobProcessor
+    processor = JobProcessor()
+    
+    users = await User.find_all().to_list()
+    processed_count = 0
+    errors = []
+
+    for user in users:
+        resume = await ProcessedResume.find_one({"user_id": str(user.id), "default": True})
+        if resume:
+            try:
+                await processor._process_new_resume(resume, overwrite=overwrite)
+                processed_count += 1
+            except Exception as e:
+                logger.error(f"Failed to process resume for {user.id}: {e}")
+                errors.append(str(user.id))
+
+    return {
+        "message": f"Batch process completed. Processed: {processed_count}, Errors: {len(errors)}",
+        "error_user_ids": errors
+    }
+
 @router.get("/vectors", response_model=List[OpenJobsVector], status_code=status.HTTP_200_OK)
 async def get_open_jobs_vectors(admin: User = Depends(get_admin_user)):
     """

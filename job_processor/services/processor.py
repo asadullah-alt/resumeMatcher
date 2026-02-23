@@ -2,6 +2,7 @@ import uuid
 from typing import List, Dict, Any
 from job_processor.models.job import Job, ProcessedOpenJobs, CompanyProfile, Location as JobLocation, Qualifications, RemoteStatusEnum
 from app.models.resume import ProcessedResume, Location as ResumeLocation
+from app.models.user import User
 from job_processor.services.llm_service import LLMService
 from job_processor.services.vector_service import VectorService
 from job_processor.services.qdrant_service import QdrantService
@@ -9,6 +10,10 @@ from job_processor.logger import get_logger
 
 import os
 import tempfile
+import re
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+from dateutil import parser
 
 logger = get_logger("job_processor.processor")
 
@@ -122,14 +127,73 @@ class JobProcessor:
         logger.debug(f"Flattened text length: {len(flattened)} chars")
         return flattened
 
+    def calculate_experience_years(self, experiences: List[Any]) -> float:
+        """
+        Calculates total years of experience from a list of experiences.
+        Handles overlapping intervals and various date formats.
+        """
+        if not experiences:
+            return 0.0
+
+        intervals = []
+        now = datetime.now()
+
+        for exp in experiences:
+            start_str = getattr(exp, "start_date", None)
+            end_str = getattr(exp, "end_date", None)
+            
+            if not start_str:
+                continue
+
+            try:
+                # Parse start date
+                start_dt = parser.parse(str(start_str), fuzzy=True)
+                
+                # Parse end date
+                if not end_str or any(x in str(end_str).lower() for x in ["present", "current", "now"]):
+                    end_dt = now
+                else:
+                    end_dt = parser.parse(str(end_str), fuzzy=True)
+                
+                if start_dt > end_dt:
+                    start_dt, end_dt = end_dt, start_dt
+                    
+                intervals.append((start_dt, end_dt))
+            except (ValueError, TypeError, OverflowError) as e:
+                logger.warning(f"Failed to parse dates for experience calculation ({start_str} - {end_str}): {e}")
+                continue
+
+        if not intervals:
+            return 0.0
+
+        # Merge overlapping intervals
+        intervals.sort(key=lambda x: x[0])
+        merged = []
+        if intervals:
+            curr_start, curr_end = intervals[0]
+            for i in range(1, len(intervals)):
+                next_start, next_end = intervals[i]
+                if next_start <= curr_end:
+                    curr_end = max(curr_end, next_end)
+                else:
+                    merged.append((curr_start, curr_end))
+                    curr_start, curr_end = next_start, next_end
+            merged.append((curr_start, curr_end))
+
+        total_days = sum((end - start).days for start, end in merged)
+        total_years = round(total_days / 365.25, 1)
+        
+        logger.info(f"Calculated {total_years} years of experience from {len(experiences)} entries")
+        return total_years
+
     def flatten_resume_data(self, resume: ProcessedResume) -> str:
         """
-        Flattens structured resume data into natural language for vectorization.
+        Flattens all structured resume data into natural language for vectorization.
         """
         parts = []
         
         if resume.summary:
-            parts.append(resume.summary)
+            parts.append(f"Summary: {resume.summary}")
             
         # Skills
         if resume.skills:
@@ -141,13 +205,13 @@ class JobProcessor:
         for exp in resume.experiences:
             exp_parts = []
             if exp.job_title:
-                exp_parts.append(f"worked as {exp.job_title}")
+                exp_parts.append(f"Role: {exp.job_title}")
             if exp.company:
                 exp_parts.append(f"at {exp.company}")
             if exp.description:
                 exp_parts.append(". ".join(exp.description))
             if exp_parts:
-                parts.append("Experience: " + " ".join(exp_parts))
+                parts.append("Experience entry: " + " ".join(exp_parts))
                 
         # Projects
         for proj in resume.projects:
@@ -156,6 +220,8 @@ class JobProcessor:
                 proj_parts.append(f"Project: {proj.project_name}")
             if proj.description:
                 proj_parts.append(proj.description)
+            if proj.technologies_used:
+                proj_parts.append("Using: " + ", ".join(proj.technologies_used))
             if proj_parts:
                 parts.append(" ".join(proj_parts))
 
@@ -168,14 +234,67 @@ class JobProcessor:
                 edu_parts.append(f"in {edu.field_of_study}")
             if edu.institution:
                 edu_parts.append(f"from {edu.institution}")
+            if edu.description:
+                edu_parts.append(edu.description)
             if edu_parts:
                 parts.append("Education: " + " ".join(edu_parts))
+
+        # Research Work
+        for research in resume.research_work:
+            r_parts = []
+            if research.title: r_parts.append(f"Research: {research.title}")
+            if research.publication: r_parts.append(f"Published in: {research.publication}")
+            if research.description: r_parts.append(research.description)
+            if r_parts: parts.append(" ".join(r_parts))
+
+        # Achievements
+        if resume.achievements:
+            parts.append("Achievements: " + "; ".join(resume.achievements))
+
+        # Publications
+        for pub in resume.publications:
+            p_parts = []
+            if pub.title: p_parts.append(f"Publication: {pub.title}")
+            if pub.publication_venue: p_parts.append(f"Venue: {pub.publication_venue}")
+            if pub.description: p_parts.append(pub.description)
+            if p_parts: parts.append(" ".join(p_parts))
+
+        # Conferences, Trainings, Workshops
+        for item in resume.conferences_trainings_workshops:
+            c_parts = []
+            if item.name: c_parts.append(f"{item.type.value if hasattr(item.type, 'value') else item.type or 'Event'}: {item.name}")
+            if item.organizer: c_parts.append(f"by {item.organizer}")
+            if item.description: c_parts.append(item.description)
+            if c_parts: parts.append(" ".join(c_parts))
+
+        # Awards
+        for award in resume.awards:
+            a_parts = []
+            if award.title: a_parts.append(f"Award: {award.title}")
+            if award.issuer: a_parts.append(f"issued by {award.issuer}")
+            if award.description: a_parts.append(award.description)
+            if a_parts: parts.append(" ".join(a_parts))
+
+        # Extracurricular Activities
+        for activity in resume.extracurricular_activities:
+            ext_parts = []
+            if activity.activity_name: ext_parts.append(f"Activity: {activity.activity_name}")
+            if activity.role: ext_parts.append(f"as {activity.role}")
+            if activity.organization: ext_parts.append(f"with {activity.organization}")
+            if activity.description: ext_parts.append(activity.description)
+            if ext_parts: parts.append(" ".join(ext_parts))
+
+        # Languages
+        if resume.languages:
+            lang_parts = [f"{l.language} ({l.proficiency or 'Native'})" for l in resume.languages if l.language]
+            if lang_parts:
+                parts.append("Languages: " + ", ".join(lang_parts))
 
         flattened = " ".join(parts)
         logger.debug(f"Flattened resume length: {len(flattened)} chars")
         return flattened
 
-    async def _process_new_resume(self, resume: ProcessedResume):
+    async def _process_new_resume(self, resume: ProcessedResume, overwrite: bool = False):
         """
         Pipeline for processing resumes: Flattening -> Vectorization -> Save to Qdrant.
         Only processes if resume.default is True.
@@ -185,6 +304,11 @@ class JobProcessor:
             return
 
         resume_id = resume.resume_id
+
+        # Deduplication check
+        if not overwrite and self.qdrant.point_exists(self.qdrant.resume_collection, resume_id):
+            logger.info(f"[Resume {resume_id}] already exists in Qdrant and overwrite is False — skipping")
+            return
         logger.info(f"[Resume {resume_id}] Starting resume processing pipeline")
 
         # 1. Flattening
@@ -196,15 +320,49 @@ class JobProcessor:
         dense_vector = self.vector_service.get_dense_vector(flattened)
         sparse_vector = self.vector_service.get_splade_vector(flattened)
 
-        # Prepare payload
-        payload = resume.dict()
-        # Ensure job_description equivalent is set for consistency if needed, 
-        # or just use the flattened content
-        payload["resume_text"] = flattened
-        
-        # Convert date to string for JSON serialization if necessary
-        if "processed_at" in payload and payload["processed_at"]:
-            payload["processed_at"] = payload["processed_at"].isoformat()
+        # 3. Fetch User and enrich metadata
+        user = await User.find_one(User.id == resume.user_id) # ProcessedResume.user_id is a string usually
+        if not user:
+            # Try converting to ObjectId if needed, but Beanie usually handles string IDs
+            # If standard string ID fail, attempt raw search
+            user = await User.get(resume.user_id)
+            
+        exp_years = self.calculate_experience_years(resume.experiences)
+
+        # Prepare metadata matching job schema
+        latest_title = None
+        if resume.experiences:
+            latest_title = resume.experiences[0].job_title
+
+        location_str = None
+        if resume.personal_data and resume.personal_data.location:
+            loc = resume.personal_data.location
+            location_str = ", ".join(filter(None, [loc.city, loc.country]))
+
+        resume_metadata = {
+            "title": latest_title,
+            "location": location_str,
+            "remote_friendly": user.remote_friendly if user else None,
+            "salary_min": user.salary_min if user else None,
+            "salary_max": user.salary_max if user else None,
+            "skills": [{"skill_name": s.skill_name, "skill_type": "Hard Skill"} for s in resume.skills if s.skill_name],
+            "experience_years": exp_years,
+            "posted_at": resume.processed_at.isoformat() if resume.processed_at else None,
+            "visa_sponsorship": user.visa_sponsorship if user else None
+        }
+
+        # Prepare final payload
+        payload = {
+            "resume_id": resume_id,
+            "user_id": resume.user_id,
+            "resume_name": resume.resume_name,
+            "resume_text": flattened,
+            "metadata": resume_metadata,
+            "full_resume": resume.dict()
+        }
+
+        if payload["full_resume"].get("processed_at"):
+            payload["full_resume"]["processed_at"] = payload["full_resume"]["processed_at"].isoformat()
 
         await self.qdrant.upsert_vector(
             collection_name=self.qdrant.resume_collection,

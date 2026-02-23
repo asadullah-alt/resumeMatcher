@@ -91,3 +91,17 @@ class QdrantService:
             f"Qdrant upsert OK — collection={collection_name}, entity_id={entity_id!r}, point_id={point_id}, "
             f"dense_dim={len(dense_vector)}, sparse_tokens={len(sparse_vector['indices'])}"
         )
+    def point_exists(self, collection_name: str, entity_id: str) -> bool:
+        """Checks if a point with the derived UUID exists in the collection."""
+        point_id = _job_uuid(entity_id)
+        try:
+            results = self.client.retrieve(
+                collection_name=collection_name,
+                ids=[point_id],
+                with_payload=False,
+                with_vectors=False,
+            )
+            return len(results) > 0
+        except Exception as e:
+            logger.error(f"Error checking point existence in Qdrant: {e}")
+            return False

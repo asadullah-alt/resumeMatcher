@@ -10,3 +10,4 @@ pydantic>=2.0
 spacy
 ollama
 qdrant-client
+python-dateutil

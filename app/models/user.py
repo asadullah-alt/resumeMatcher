@@ -59,6 +59,12 @@ class User(Document):
     credits_used_this_period: int = Field(default=0)
     last_credit_reset: datetime = Field(default_factory=lambda: datetime.now(UTC))
     total_credits_lifetime: int = Field(default=0)
+    
+    # User Preferences
+    salary_min: Optional[int] = None
+    salary_max: Optional[int] = None
+    visa_sponsorship: Optional[bool] = None
+    remote_friendly: Optional[bool] = None
 
     async def generate_hash(self, password: str) -> str:
         """Generate a hashed password using bcrypt."""
