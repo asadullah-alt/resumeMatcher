@@ -305,3 +305,33 @@ async def get_enriched_matches(
             ))
             
     return enriched_results
+
+@router.get("/details/{job_id}", response_model=ProcessedOpenJobs, status_code=status.HTTP_200_OK)
+async def get_job_details(
+    job_id: str,
+    x_user_token: str = Header(..., alias="X-User-Token")
+):
+    """
+    Returns the details of a processed job identified by job_id.
+    Requires user validation via token.
+    """
+    billing_service = BillingService()
+    user = await billing_service.get_user_by_token(x_user_token)
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="Invalid user token."
+        )
+    
+    job_details = await ProcessedOpenJobs.find_one(
+        ProcessedOpenJobs.job_id == job_id
+    )
+    
+    if not job_details:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job with ID {job_id} not found."
+        )
+        
+    return job_details
