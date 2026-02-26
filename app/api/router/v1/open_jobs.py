@@ -52,9 +52,25 @@ async def get_admin_user(
     if x_admin_email != "asadullahbeg@gmail.com":
         raise HTTPException(status_code=403, detail="Unauthorized: Only asadullahbeg can access this API.")
     
-    admin = await User.find_one({"local.email": "asadullahbeg@gmail.com"})
-    if not admin or not admin.local or admin.local.token != x_admin_token:
-        raise HTTPException(status_code=403, detail="Unauthorized: Invalid token or user not found.")
+    admin = await User.find_one({
+        "$or": [
+            {"local.email": "asadullahbeg@gmail.com"},
+            {"google.email": "asadullahbeg@gmail.com"}
+        ]
+    })
+    
+    if not admin:
+        raise HTTPException(status_code=403, detail="Unauthorized: User not found.")
+        
+    # Check if the token matches either local or google token
+    is_valid_token = False
+    if admin.local and admin.local.token == x_admin_token:
+        is_valid_token = True
+    elif admin.google and admin.google.token == x_admin_token:
+        is_valid_token = True
+        
+    if not is_valid_token:
+        raise HTTPException(status_code=403, detail="Unauthorized: Invalid token.")
     
     return admin
 
