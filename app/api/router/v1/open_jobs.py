@@ -8,6 +8,7 @@ from job_processor.models.job import OpenJobsVector, UserJobMatch
 from app.services.open_job_service import OpenJobService
 from pydantic import BaseModel
 from app.models.user import User
+from app.services.billing_service import BillingService
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,10 @@ class BatchJobResponse(BaseModel):
     skipped_count: int
     processed_jobs: List[ProcessedOpenJobs]
     message: str
+
+class EnrichedMatch(BaseModel):
+    match: UserJobMatch
+    job_details: ProcessedOpenJobs
 
 async def get_admin_user(
     x_admin_email: str = Header(..., alias="X-Admin-Email"),
@@ -242,3 +247,61 @@ async def get_open_jobs_vectors(admin: User = Depends(get_admin_user)):
     """
     vectors = await OpenJobsVector.find_all().to_list()
     return vectors
+
+@router.get("/matches/enriched", response_model=List[EnrichedMatch], status_code=status.HTTP_200_OK)
+async def get_enriched_matches(
+    x_user_token: str = Header(..., alias="X-User-Token")
+):
+    """
+    Returns enriched match results for the user identified by the provided token.
+    Only matches with percentage_match > 30 are returned.
+    If no matches are found, triggers the matching engine.
+    """
+    billing_service = BillingService()
+    user = await billing_service.get_user_by_token(x_user_token)
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="Invalid user token."
+        )
+    
+    user_id = str(user.id)
+    
+    # 1. Initial lookup for matches > 30
+    matches = await UserJobMatch.find(
+        UserJobMatch.user_id == user_id,
+        UserJobMatch.percentage_match > 30
+    ).to_list()
+    
+    # 2. If no matches found, trigger processor
+    if not matches:
+        logger.info(f"No matches > 30% found for user {user_id}. Triggering matching engine.")
+        from job_processor.services.processor import JobProcessor
+        processor = JobProcessor()
+        try:
+            # Run matching
+            await processor.match_user_resumes_to_jobs(user_id)
+            
+            # Re-fetch matches
+            matches = await UserJobMatch.find(
+                UserJobMatch.user_id == user_id,
+                UserJobMatch.percentage_match > 30
+            ).to_list()
+        except Exception as e:
+            logger.error(f"Failed to trigger matching for user {user_id}: {e}")
+            # We still want to return empty or whatever matches were found if any errors occurred
+    
+    enriched_results = []
+    for match in matches:
+        # Join with ProcessedOpenJobs
+        job_details = await ProcessedOpenJobs.find_one(
+            ProcessedOpenJobs.job_id == match.job_id
+        )
+        if job_details:
+            enriched_results.append(EnrichedMatch(
+                match=match,
+                job_details=job_details
+            ))
+            
+    return enriched_results
