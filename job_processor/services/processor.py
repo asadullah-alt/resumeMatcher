@@ -455,7 +455,7 @@ class JobProcessor:
 
         # 3. Search Qdrant for matching jobs
         logger.info(f"[User {user_id}] Searching for top matching jobs")
-        matches = self.qdrant.search_jobs(dense_vec, sparse_vec.model_dump() if hasattr(sparse_vec, "model_dump") else sparse_vec, limit=100)
+        matches = self.qdrant.search_jobs(dense_vec, sparse_vec.model_dump() if hasattr(sparse_vec, "model_dump") else sparse_vec, limit=1000)
 
         # 4. Save/Update match results in MongoDB
         results = []
