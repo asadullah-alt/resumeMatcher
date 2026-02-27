@@ -65,7 +65,7 @@ class User(Document):
     salary_max: Optional[int] = None
     visa_sponsorship: Optional[bool] = None
     remote_friendly: Optional[bool] = None
-
+    country: Optional[str] = None
     async def generate_hash(self, password: str) -> str:
         """Generate a hashed password using bcrypt."""
         salt = bcrypt.gensalt(8)
