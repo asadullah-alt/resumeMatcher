@@ -158,7 +158,12 @@ async def process_user_resume(
     """
     Triggers the vectorization pipeline for a specific user's default resume.
     """
-    user = await User.find_one({"local.email": email})
+    user = await User.find_one({
+        "$or": [
+            {"local.email": email},
+            {"google.email": email}
+        ]
+    })
     if not user:
         raise HTTPException(status_code=404, detail=f"User with email {email} not found")
 
