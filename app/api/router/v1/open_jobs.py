@@ -302,17 +302,29 @@ async def get_enriched_matches(
             logger.error(f"Failed to trigger matching for user {user_id}: {e}")
             # We still want to return empty or whatever matches were found if any errors occurred
     
+    user_country = (user.country or "").strip().lower()
+
     enriched_results = []
     for match in matches:
         # Join with ProcessedOpenJobs
         job_details = await ProcessedOpenJobs.find_one(
             ProcessedOpenJobs.job_id == match.job_id
         )
-        if job_details:
-            enriched_results.append(EnrichedMatch(
-                match=match,
-                job_details=job_details
-            ))
+        if not job_details:
+            continue
+
+        # Filter by country if the user has a country preference set
+        if user_country:
+            job_country = ""
+            if job_details.location and job_details.location.country:
+                job_country = job_details.location.country.strip().lower()
+            if job_country != user_country:
+                continue
+
+        enriched_results.append(EnrichedMatch(
+            match=match,
+            job_details=job_details
+        ))
             
     return enriched_results
 
