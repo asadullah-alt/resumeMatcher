@@ -217,7 +217,12 @@ async def match_user_to_jobs(
     Matches the user's default resume vectors against existing open job vectors.
     Saves the match percentages to UserJobMatch collection.
     """
-    user = await User.find_one({"local.email": email})
+    user = await User.find_one({
+        "$or": [
+            {"local.email": email},
+            {"google.email": email}
+        ]
+    })
     if not user:
         raise HTTPException(status_code=404, detail=f"User with email {email} not found")
 
