@@ -5,7 +5,7 @@ from .resume import resume_router
 from .config import config_router
 from .cover_letter import cover_letter_router
 from .user_analysis import router as user_analysis_router
-from .open_jobs import router as open_jobs_router
+from .open_jobs import router as open_jobs_router, process_raw_resume
 from .user import user_router
 
 
@@ -17,6 +17,9 @@ v1_router.include_router(cover_letter_router, prefix="/cover-letters")
 v1_router.include_router(user_analysis_router, prefix="/user-analysis", tags=["user-analysis"])
 v1_router.include_router(open_jobs_router, prefix="/open-jobs", tags=["open-jobs"])
 v1_router.include_router(user_router, prefix="/users", tags=["users"])
+
+# Manual registration for raw resume processing under /resumes
+v1_router.post("/resumes/process/raw/{resume_id}", tags=["resumes"], status_code=200)(process_raw_resume)
 
 
 
