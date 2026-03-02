@@ -3,6 +3,7 @@ import logging
 import traceback
 from typing import List, Any
 from fastapi import APIRouter, status, Header, HTTPException, Depends
+from bs4 import BeautifulSoup
 from app.models.job import Job, ProcessedOpenJobs
 from job_processor.models.job import OpenJobsVector, UserJobMatch
 from app.services.open_job_service import OpenJobService
@@ -43,6 +44,57 @@ async def _run_processor_after_delay(job_pairs: list, delay: int = 60):
             logger.error(
                 f"[Job {source_job.job_id}] JobProcessor failed: {e}\n{traceback.format_exc()}"
             )
+
+def clean_html_body(html_string: str) -> str:
+    """
+    Cleans raw HTML into plain text with consistent spacing.
+    Migrated from OpenJobService to ensure cleaning happens before DB insertion.
+    """
+    try:
+        soup = BeautifulSoup(html_string, 'html.parser')
+
+        # Scope to Body if present
+        body_tag = soup.find('body')
+        target_content = body_tag if body_tag else soup
+        
+        # Tags that represent paragraph or sections
+        MAJOR_BLOCK_TAGS = [
+            'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
+            'div', 'section', 'article', 'aside', 'main', 'nav', 'header', 'footer',
+            'li', 'ul', 'ol', 'blockquote', 'table', 'tr', 'form', 
+            'fieldset', 'legend', 'dt', 'dd', 'address', 'pre'
+        ]
+        
+        # Remove unwanted tags
+        tags_to_remove_completely = ['script', 'svg', 'iframe', 'style', 'a', 'code']
+        for tag_name in tags_to_remove_completely:
+            for tag in target_content.find_all(tag_name):
+                tag.extract()
+                
+        # Insert spacing for blocks
+        for tag_name in MAJOR_BLOCK_TAGS:
+            for tag in target_content.find_all(tag_name):
+                tag.insert_before('\n\n')
+                if tag_name not in ['li', 'tr', 'dt', 'dd']:
+                    tag.append('\n\n')
+
+        # Handle line breaks
+        for br_tag in target_content.find_all('br'):
+            br_tag.replace_with('\n')
+
+        text_content = target_content.get_text(strip=False)
+        
+        # Post-processing
+        text_content = text_content.replace('\\n', '\n')
+        text_content = text_content.replace('\r\n', '\n').replace('\r', '\n')
+        
+        lines = text_content.split('\n')
+        cleaned_lines = [line.strip() for line in lines if line.strip()]
+        return '\n'.join(cleaned_lines)
+
+    except Exception as e:
+        logger.error(f"Error cleaning HTML: {e}")
+        return html_string # Return raw if cleaning fails
 
 router = APIRouter()
 
@@ -116,11 +168,17 @@ async def create_open_jobs(jobs: List[Job], admin: User = Depends(get_admin_user
         # However, we want to make sure we don't accidentally overwrite or use an old ID.
         # Beanie's Document.insert() will create a new one if id is None.
         
+        # If sourced from extension, clean the content before saving
+        job_content = job_data.content
+        if job_data.user_id == "extension":
+            logger.info(f"  -> Cleaning HTML content for extension job: {job_data.job_id}")
+            job_content = clean_html_body(job_content)
+
         new_job = Job(
             job_url=job_data.job_url,
             user_id=job_data.user_id,
             job_id=job_data.job_id,
-            content=job_data.content,
+            content=job_content,
             raw_content=job_data.content,
             public=job_data.public
         )
