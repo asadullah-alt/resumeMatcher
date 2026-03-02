@@ -353,6 +353,8 @@ async def get_all_users_stats(admin: User = Depends(get_admin_user)):
             user_created_at = user.verification_attempts.last_attempt
         if not user_created_at:
             user_created_at = datetime.now(UTC)
+        elif user_created_at.tzinfo is None:
+            user_created_at = user_created_at.replace(tzinfo=UTC)
 
         all_stats.append(UserStats(
             user_email=email,
