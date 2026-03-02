@@ -8,7 +8,10 @@ from job_processor.models.job import OpenJobsVector, UserJobMatch
 from app.services.open_job_service import OpenJobService
 from pydantic import BaseModel
 from app.models.user import User
+from app.models.resume import Resume, ProcessedResume
+from app.services import ResumeService
 from app.services.billing_service import BillingService
+from app.core import get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -389,3 +392,49 @@ async def get_job_details(
         )
         
     return job_details
+
+@router.post("/resumes/process/raw/{resume_id}", status_code=status.HTTP_200_OK)
+async def process_raw_resume(
+    resume_id: str,
+    admin: User = Depends(get_admin_user),
+    db: Any = Depends(get_db_session)
+):
+    """
+    Fetches raw resume content from the Resume collection and triggers 
+    the extraction pipeline to create a ProcessedResume.
+    """
+    logger.info(f"--- [process_raw_resume] Manual processing request for resume_id: {resume_id} ---")
+    
+    resume = await Resume.find_one(Resume.resume_id == resume_id)
+    if not resume:
+        logger.error(f"  -> Resume not found: {resume_id}")
+        raise HTTPException(status_code=404, detail=f"Resume with id {resume_id} not found in Resume collection.")
+
+    # Check if ProcessedResume already exists
+    existing_processed = await ProcessedResume.find_one(ProcessedResume.resume_id == resume_id)
+    if existing_processed:
+        logger.info(f"  -> Skipping: ProcessedResume already exists for {resume_id}")
+        return {"message": f"ProcessedResume already exists for resume {resume_id}. Skipping processing."}
+
+    try:
+        resume_service = ResumeService(db)
+        logger.info(f"  -> Triggering extraction for resume: {resume_id} (user_id: {resume.user_id})")
+        
+        success = await resume_service._extract_and_store_structured_resume(
+            resume_id=resume.resume_id,
+            resume_text=resume.content,
+            user_id=resume.user_id,
+            resume_name=resume.resume_name
+        )
+        
+        if success:
+            logger.info(f"  -> Successfully created ProcessedResume for {resume_id}")
+            return {"message": f"Successfully processed raw resume {resume_id}."}
+        else:
+            logger.error(f"  -> Extraction failed for resume: {resume_id}")
+            raise HTTPException(status_code=500, detail="Extraction failed. Resume might be invalid or incomplete.")
+            
+    except Exception as e:
+        logger.error(f"  -> [CRITICAL] Error processing raw resume {resume_id}: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Internal processing error: {str(e)}")
+
