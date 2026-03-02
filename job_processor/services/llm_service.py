@@ -15,9 +15,9 @@ load_dotenv(find_dotenv(), override=True)
 logger = get_logger("job_processor.llm_service")
 
 class LLMService:
-    def __init__(self):
-        self.provider = Config.LLM_EXTRACTION_PROVIDER
-        logger.info(f"LLMService initialized with provider: '{self.provider}'")
+    def __init__(self, user_id: str = None):
+        self.provider = "openai" if user_id == "extension" else Config.LLM_EXTRACTION_PROVIDER
+        logger.info(f"LLMService initialized with provider: '{self.provider}' (user_id: {user_id})")
         
         # Initialize OpenAI client for extraction if provider is openai
         if self.provider == "openai":

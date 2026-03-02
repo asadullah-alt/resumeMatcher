@@ -25,11 +25,13 @@ async def _run_processor_after_delay(job_pairs: list):
     await asyncio.sleep(60)
 
     from job_processor.services.processor import JobProcessor
-    processor = JobProcessor()
+    # We'll initialize a fresh processor per job in the loop below to handle mixed user_ids
+
 
     for source_job, processed_job in job_pairs:
         try:
             logger.info(f"[Job {source_job.job_id}] Starting JobProcessor pipeline")
+            processor = JobProcessor(user_id=source_job.user_id)
             await processor.process_new_job(source_job, processed_job)
         except Exception as e:
             logger.error(
@@ -172,7 +174,7 @@ async def process_user_resume(
         raise HTTPException(status_code=404, detail=f"No default ProcessedResume found for user {email}")
 
     from job_processor.services.processor import JobProcessor
-    processor = JobProcessor()
+    processor = JobProcessor(user_id=str(user.id))
     
     try:
         await processor._process_new_resume(resume, overwrite=overwrite)
@@ -191,7 +193,8 @@ async def process_all_user_resumes(
     for their default ProcessedResumes one-by-one.
     """
     from job_processor.services.processor import JobProcessor
-    processor = JobProcessor()
+    # Will initialize per-user inside the loop for correctness, though usually not needed for "all"
+
     
     users = await User.find_all().to_list()
     processed_count = 0
@@ -201,6 +204,7 @@ async def process_all_user_resumes(
         resume = await ProcessedResume.find_one({"user_id": str(user.id), "default": True})
         if resume:
             try:
+                processor = JobProcessor(user_id=str(user.id))
                 await processor._process_new_resume(resume, overwrite=overwrite)
                 processed_count += 1
             except Exception as e:
@@ -233,7 +237,7 @@ async def match_user_to_jobs(
 
     user_id = str(user.id)
     from job_processor.services.processor import JobProcessor
-    processor = JobProcessor()
+    processor = JobProcessor(user_id=user_id)
     
     try:
         matches = await processor.match_user_resumes_to_jobs(user_id, overwrite=overwrite)
@@ -288,7 +292,7 @@ async def get_enriched_matches(
     if not matches:
         logger.info(f"No matches > 30% found for user {user_id}. Triggering matching engine.")
         from job_processor.services.processor import JobProcessor
-        processor = JobProcessor()
+        processor = JobProcessor(user_id=user_id)
         try:
             # Run matching
             await processor.match_user_resumes_to_jobs(user_id)

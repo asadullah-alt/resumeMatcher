@@ -37,9 +37,9 @@ except (ImportError, PermissionError):
         os.chdir(original_cwd)
 
 class JobProcessor:
-    def __init__(self):
-        logger.info("Initializing JobProcessor")
-        self.llm = LLMService()
+    def __init__(self, user_id: str = None):
+        logger.info(f"Initializing JobProcessor (user_id: {user_id})")
+        self.llm = LLMService(user_id=user_id)
         self.vector_service = VectorService()
         self.qdrant = QdrantService()
         self.db_lookup = {v['skill_name'].lower(): v['skill_name'] for k, v in SKILL_DB.items()}
