@@ -12,11 +12,14 @@ from app.schemas.pydantic import StructuredJobModel
 logger = logging.getLogger(__name__)
 
 class OpenJobService:
-    def __init__(self):
-        self.json_agent_manager = AgentManager(
-            model_provider="ollama",
-            model="gpt-oss-safeguard:20b"
-        )
+    def __init__(self, user_id: str = None):
+        if user_id == "extension":
+            self.json_agent_manager = AgentManager()
+        else:
+            self.json_agent_manager = AgentManager(
+                model_provider="ollama",
+                model="gpt-oss-safeguard:20b"
+            )
 
     async def run(self, job_id: str, user_id: str, content: str, job_url: str = None) -> Optional[ProcessedOpenJobs]:
         """

@@ -116,7 +116,7 @@ async def create_open_jobs(jobs: List[Job], admin: User = Depends(get_admin_user
         
         # Process the job using the new service
         try:
-            open_job_service = OpenJobService()
+            open_job_service = OpenJobService(user_id=new_job.user_id)
             processed_job = await open_job_service.run(
                 job_id=new_job.job_id,
                 user_id=new_job.user_id,
