@@ -86,6 +86,7 @@ async def create_open_jobs(jobs: List[Job], admin: User = Depends(get_admin_user
     """
     Batch insert jobs if they don't already exist with public=True.
     """
+    logger.info(f"--- [create_open_jobs] Batch processing started for {len(jobs)} jobs ---")
     inserted_count = 0
     skipped_count = 0
     processed_jobs = []
@@ -93,10 +94,13 @@ async def create_open_jobs(jobs: List[Job], admin: User = Depends(get_admin_user
     jobs_to_process: list = []
 
     for job_data in jobs:
+        logger.info(f"[Job Process] Handling job_id: {job_data.job_id} | url: {job_data.job_url}")
+        
         # Check if job already exists with public=True
         existing_job = await Job.find_one({"job_url": job_data.job_url, "public": True})
         
         if existing_job:
+            logger.info(f"  -> Skipping: Job already exists with public=True (id: {existing_job.job_id})")
             skipped_count += 1
             continue
         
@@ -115,22 +119,31 @@ async def create_open_jobs(jobs: List[Job], admin: User = Depends(get_admin_user
             public=job_data.public
         )
         await new_job.insert()
+        logger.info(f"  -> Inserted into 'Job' collection. Beanie ID: {new_job.id}")
         
         # Process the job using the new service
         try:
+            logger.info(f"  -> Initializing OpenJobService for user_id: {new_job.user_id}")
             open_job_service = OpenJobService(user_id=new_job.user_id)
+            
+            logger.info(f"  -> Running extraction pipeline for job: {new_job.job_id}")
             processed_job = await open_job_service.run(
                 job_id=new_job.job_id,
                 user_id=new_job.user_id,
                 content=new_job.content,
                 job_url=new_job.job_url
             )
+            
             if processed_job:
+                logger.info(f"  -> Extraction successful. Job title: {processed_job.job_title}")
                 processed_jobs.append(processed_job)
                 jobs_to_process.append((new_job, processed_job))
+            else:
+                logger.warning(f"  -> Extraction returned None for job: {new_job.job_id}")
+
         except Exception as e:
             # We log the error but don't fail the whole request
-            logger.error(f"Error processing open job {new_job.job_id}: {e}\n{traceback.format_exc()}")
+            logger.error(f"  -> [CRITICAL] Failed to process open job {new_job.job_id}: {e}\n{traceback.format_exc()}")
 
         inserted_count += 1
 
@@ -138,10 +151,13 @@ async def create_open_jobs(jobs: List[Job], admin: User = Depends(get_admin_user
     if jobs_to_process:
         asyncio.create_task(_run_processor_after_delay(jobs_to_process))
         logger.info(
-            f"Background JobProcessor task queued for {len(jobs_to_process)} job(s) "
-            f"(will run after 60s delay)"
+            f"--- [create_open_jobs] Background JobProcessor task queued for {len(jobs_to_process)} job(s) ---"
+            f" (will run after 60s delay)"
         )
+    else:
+        logger.info("--- [create_open_jobs] No new jobs to queue for JobProcessor background task. ---")
 
+    logger.info(f"--- [create_open_jobs] Finished. Inserted: {inserted_count}, Skipped: {skipped_count} ---")
     return BatchJobResponse(
         inserted_count=inserted_count,
         skipped_count=skipped_count,
