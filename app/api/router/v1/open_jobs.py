@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import traceback
-from typing import List
+from typing import List, Any
 from fastapi import APIRouter, status, Header, HTTPException, Depends
 from app.models.job import Job, ProcessedOpenJobs
 from job_processor.models.job import OpenJobsVector, UserJobMatch
