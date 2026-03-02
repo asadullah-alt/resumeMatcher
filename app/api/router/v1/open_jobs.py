@@ -13,16 +13,19 @@ from app.services.billing_service import BillingService
 logger = logging.getLogger(__name__)
 
 
-async def _run_processor_after_delay(job_pairs: list):
+async def _run_processor_after_delay(job_pairs: list, delay: int = 60):
     """
-    Background task: waits 60 seconds then runs JobProcessor on each
+    Background task: waits 'delay' seconds then runs JobProcessor on each
     (source_job, processed_job) pair. Runs in the FastAPI event loop so
     no extra DB connection is needed.
     """
-    logger.info(
-        f"JobProcessor scheduled: waiting 60s before processing {len(job_pairs)} job(s)..."
-    )
-    await asyncio.sleep(60)
+    if delay > 0:
+        logger.info(
+            f"JobProcessor scheduled: waiting {delay}s before processing {len(job_pairs)} job(s)..."
+        )
+        await asyncio.sleep(delay)
+    else:
+        logger.info(f"JobProcessor starting immediately for {len(job_pairs)} job(s)...")
 
     from job_processor.services.processor import JobProcessor
     # We'll initialize a fresh processor per job in the loop below to handle mixed user_ids
@@ -149,11 +152,20 @@ async def create_open_jobs(jobs: List[Job], admin: User = Depends(get_admin_user
 
     # Fire background task: wait 60s then run JobProcessor for all newly inserted jobs
     if jobs_to_process:
-        asyncio.create_task(_run_processor_after_delay(jobs_to_process))
-        logger.info(
-            f"--- [create_open_jobs] Background JobProcessor task queued for {len(jobs_to_process)} job(s) ---"
-            f" (will run after 60s delay)"
-        )
+        # Separate extension jobs for immediate processing
+        immediate_jobs = [(s, p) for s, p in jobs_to_process if s.user_id == "extension"]
+        delayed_jobs = [(s, p) for s, p in jobs_to_process if s.user_id != "extension"]
+        
+        if immediate_jobs:
+            asyncio.create_task(_run_processor_after_delay(immediate_jobs, delay=0))
+            logger.info(f"--- [create_open_jobs] Immediate JobProcessor task queued for {len(immediate_jobs)} extension job(s) ---")
+            
+        if delayed_jobs:
+            asyncio.create_task(_run_processor_after_delay(delayed_jobs, delay=60))
+            logger.info(
+                f"--- [create_open_jobs] Delayed JobProcessor task queued for {len(delayed_jobs)} job(s) ---"
+                f" (will run after 60s delay)"
+            )
     else:
         logger.info("--- [create_open_jobs] No new jobs to queue for JobProcessor background task. ---")
 
