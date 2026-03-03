@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from app.models.job import Job, ProcessedOpenJobs
 from job_processor.models.job import OpenJobsVector, UserJobMatch
 from app.services.open_job_service import OpenJobService
+from app.services.email_service import EmailService
 from pydantic import BaseModel
 from app.models.user import User
 from app.models.resume import Resume, ProcessedResume
@@ -599,3 +600,94 @@ async def clicked_on_matched_job(
     match.new_matched_job = False
     await match.save()
     return {"message": "Match updated successfully.", "new_matched_job": False}
+
+# Email Template for Job Matches
+EMAIL_TEMPLATE_MATCHES = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f0f2f5; color: #1c1e21; }
+        .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); }
+        .header { background: linear-gradient(135deg, #6e8efb, #a777e3); padding: 40px 20px; text-align: center; color: #ffffff; }
+        .header h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+        .content { padding: 40px 30px; line-height: 1.6; }
+        .content p { margin-bottom: 20px; font-size: 16px; }
+        .button-container { text-align: center; margin: 30px 0; }
+        .button { background: linear-gradient(135deg, #6e8efb, #a777e3); color: #ffffff !important; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px; display: inline-block; transition: transform 0.2s; box-shadow: 0 4px 15px rgba(110, 142, 251, 0.3); }
+        .features { background-color: #f8fafc; padding: 25px; border-radius: 10px; margin: 20px 0; border: 1px solid #e2e8f0; }
+        .features h3 { margin-top: 0; color: #4a5568; font-size: 18px; }
+        .feature-item { margin-bottom: 15px; display: flex; align-items: flex-start; }
+        .feature-icon { color: #6e8efb; margin-right: 12px; font-size: 20px; }
+        .feature-text { font-size: 15px; color: #4a5568; }
+        .footer { background-color: #f9fafb; padding: 30px; text-align: center; font-size: 14px; color: #718096; border-top: 1px solid #edf2f7; }
+        .footer a { color: #6e8efb; text-decoration: none; }
+        .logo { font-weight: 800; font-size: 22px; color: #ffffff; margin-bottom: 10px; display: block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <span class="logo">Bhai Kaam Do</span>
+            <h1>Your Top Matches are Ready!</h1>
+        </div>
+        <div class="content">
+            <p>Hi there,</p>
+            <p>Our system has finished processing your profile, and we’ve found several <strong>top job matches</strong> that align with your skills and preferences.</p>
+            <p>You can view your personalized list and start applying immediately by visiting your dashboard:</p>
+            
+            <div class="button-container">
+                <a href="https://bhaikaamdo.com/matches" class="button">View My Job Matches</a>
+            </div>
+
+            <div class="features">
+                <h3>Why check these matches?</h3>
+                <div class="feature-item">
+                    <div class="feature-icon">🎯</div>
+                    <div class="feature-text"><strong>Tailored to You:</strong> These roles were selected based on your specific experience and criteria.</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🚀</div>
+                    <div class="feature-text"><strong>High Compatibility:</strong> We’ve prioritized listings where you have the highest chance of landing an interview.</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">⚡</div>
+                    <div class="feature-text"><strong>Real-time Updates:</strong> New matches are added as soon as they hit our system.</div>
+                </div>
+            </div>
+
+            <p>If you have any questions or need assistance with your account, please don't hesitate to reach out to our team at <a href="mailto:support@bhaikaamdo.com">support@bhaikaamdo.com</a>.</p>
+            
+            <p>Best of luck with the hunt!</p>
+            <p><strong>The Bhai Kaam Do Team</strong></p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2026 Bhai Kaam Do. All rights reserved.</p>
+            <p>Helping you find the work you deserve.</p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+class MatchNotificationRequest(BaseModel):
+    user_email: str
+
+@router.post("/send-match-notification", status_code=status.HTTP_200_OK)
+async def send_match_notification(
+    request: MatchNotificationRequest,
+    admin: User = Depends(get_admin_user)
+):
+    """
+    Sends a match notification email to the specified recipient.
+    """
+    email_service = EmailService()
+    subject = "Your top matches are ready"
+    success = email_service.send_email(request.user_email, subject, EMAIL_TEMPLATE_MATCHES)
+    
+    if success:
+        return {"message": f"Successfully sent match notification to {request.user_email}"}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to send notification email.")

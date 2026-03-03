@@ -8,22 +8,14 @@ from app.models.resume import Resume, ProcessedResume
 from app.models.cover_letter import CoverLetter
 from beanie.operators import In
 import logging
-import smtplib
-import os
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+from app.services.email_service import EmailService
 from datetime import datetime, UTC
 import email.utils
 import uuid
 
 logger = logging.getLogger(__name__)
 
-# Email configuration
-EMAIL_USER = os.getenv('EMAIL_USER', 'support@bhaikaamdo.com')
-EMAIL_PASSWORD = os.getenv('EMAIL_PASSWORD', 'Apogee12345!')
-# SMTP2GO settings
-SMTP_SERVER = 'mail-eu.smtp2go.com'
-SMTP_PORT = 2525
+# Email configuration is now handled in app.services.email_service.EmailService
 EMAIL_TEMPLATE_LIVE = """
 <!DOCTYPE html>
 <html>
@@ -284,31 +276,9 @@ async def get_admin_user(
     return admin
 
 def send_notification_email(to_email: str, template: str, subject: str):
-    """Sends an HTML notification email with improved deliverability headers."""
-    msg = MIMEMultipart()
-    
-    # Standard Headers
-    msg['From'] = f"Bhai Kaam Do Support <{EMAIL_USER}>"
-    msg['To'] = to_email
-    msg['Subject'] = subject
-    msg['Date'] = email.utils.formatdate(localtime=True)
-    msg['Message-ID'] = email.utils.make_msgid(domain='bhaikaamdo.com')
-    
-    # Deliverability/Spam Prevention Headers
-    msg['List-Unsubscribe'] = f"<mailto:support@bhaikaamdo.com?subject=Unsubscribe%20{to_email}>"
-    msg['Precedence'] = 'bulk'
-    msg['X-Auto-Response-Suppress'] = 'All'
-    
-    msg.attach(MIMEText(template, 'html'))
-    
-    try:
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.starttls()
-            server.login(EMAIL_USER, EMAIL_PASSWORD)
-            server.send_message(msg)
-        logger.info(f"Successfully sent notification email to {to_email} with subject: {subject}")
-    except Exception as e:
-        logger.error(f"Failed to send email to {to_email}: {e}")
+    """Sends an HTML notification email using EmailService."""
+    email_service = EmailService()
+    email_service.send_email(to_email, subject, template)
 
 def send_credit_notification_email(to_email: str, credits_added: int):
     """Sends an HTML notification email for credits."""
