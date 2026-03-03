@@ -616,7 +616,7 @@ EMAIL_TEMPLATE_MATCHES = """
         .content { padding: 40px 30px; line-height: 1.6; }
         .content p { margin-bottom: 20px; font-size: 16px; }
         .button-container { text-align: center; margin: 30px 0; }
-        .button { background: linear-gradient(135deg, #6e8efb, #a777e3); color: #ffffff !important; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px; display: inline-block; transition: transform 0.2s; box-shadow: 0 4px 15px rgba(110, 142, 251, 0.3); }
+        .button { background-color: #6e8efb; background: linear-gradient(135deg, #6e8efb, #a777e3); color: #ffffff !important; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px; display: inline-block; transition: transform 0.2s; box-shadow: 0 4px 15px rgba(110, 142, 251, 0.3); }
         .features { background-color: #f8fafc; padding: 25px; border-radius: 10px; margin: 20px 0; border: 1px solid #e2e8f0; }
         .features h3 { margin-top: 0; color: #4a5568; font-size: 18px; }
         .feature-item { margin-bottom: 15px; display: flex; align-items: flex-start; }
