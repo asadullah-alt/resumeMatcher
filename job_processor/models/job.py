@@ -158,7 +158,14 @@ class UserJobMatch(Document):
     job_id: str
     job_url: Optional[str] = None
     percentage_match: float
+    clicked: bool = False
+    clicked_on_applied: bool = Field(False, alias="clickedOnApplied")
+    new_matched_job: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+    model_config = ConfigDict(
+        populate_by_name=True
+    )
 
     class Settings:
         name = "UserJobMatch"

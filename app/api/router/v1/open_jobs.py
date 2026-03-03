@@ -495,4 +495,107 @@ async def process_raw_resume(
     except Exception as e:
         logger.error(f"  -> [CRITICAL] Error processing raw resume {resume_id}: {e}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Internal processing error: {str(e)}")
+@router.post("/match/clicked/{match_id}", status_code=status.HTTP_200_OK)
+async def update_match_clicked(
+    match_id: str,
+    x_user_token: str = Header(..., alias="X-User-Token")
+):
+    """
+    Updates the UserJobMatch document to set clicked=True.
+    Requires user validation via token.
+    """
+    billing_service = BillingService()
+    user = await billing_service.get_user_by_token(x_user_token)
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="Invalid user token."
+        )
+    
+    match = await UserJobMatch.get(match_id)
+    if not match:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Match with ID {match_id} not found."
+        )
+    
+    if match.user_id != str(user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to update this match."
+        )
+    
+    match.clicked = True
+    await match.save()
+    return {"message": "Match updated successfully.", "clicked": True}
 
+@router.post("/match/applied/{match_id}", status_code=status.HTTP_200_OK)
+async def update_match_applied(
+    match_id: str,
+    x_user_token: str = Header(..., alias="X-User-Token")
+):
+    """
+    Updates the UserJobMatch document to set clicked_on_applied=True.
+    Requires user validation via token.
+    """
+    billing_service = BillingService()
+    user = await billing_service.get_user_by_token(x_user_token)
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="Invalid user token."
+        )
+    
+    match = await UserJobMatch.get(match_id)
+    if not match:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Match with ID {match_id} not found."
+        )
+    
+    if match.user_id != str(user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to update this match."
+        )
+    
+    match.clicked_on_applied = True
+    await match.save()
+    return {"message": "Match updated successfully.", "clickedOnApplied": True}
+
+@router.post("/match/seen/{match_id}", status_code=status.HTTP_200_OK)
+async def clicked_on_matched_job(
+    match_id: str,
+    x_user_token: str = Header(..., alias="X-User-Token")
+):
+    """
+    Updates the UserJobMatch document to set new_matched_job=False.
+    Requires user validation via token.
+    """
+    billing_service = BillingService()
+    user = await billing_service.get_user_by_token(x_user_token)
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="Invalid user token."
+        )
+    
+    match = await UserJobMatch.get(match_id)
+    if not match:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Match with ID {match_id} not found."
+        )
+    
+    if match.user_id != str(user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to update this match."
+        )
+    
+    match.new_matched_job = False
+    await match.save()
+    return {"message": "Match updated successfully.", "new_matched_job": False}
