@@ -32,23 +32,20 @@ async def migrate():
         
         count = 0
         for match in matches:
-            updated = False
-            if not hasattr(match, "clicked") or match.clicked is None:
-                match.clicked = False
-                updated = True
+            # We don't need hasattr checks because Beanie populates defaults in the object,
+            # but they might still be missing in the DB.
+            # Since the query already filtered for documents missing at least one field,
+            # we can just set them to the desired values and save.
             
-            if not hasattr(match, "clicked_on_applied") or match.clicked_on_applied is None:
-                match.clicked_on_applied = False
-                updated = True
-                
-            if not hasattr(match, "new_matched_job") or match.new_matched_job is None:
-                # Existing matches are considered "old", so we set new_matched_job to False
-                match.new_matched_job = False
-                updated = True
+            # For migration of older records:
+            match.clicked = getattr(match, 'clicked', False)
+            match.clicked_on_applied = getattr(match, 'clicked_on_applied', False)
+            # Legacy records should be considered "seen" (new_matched_job=False) 
+            # as they are existing historical data.
+            match.new_matched_job = False
             
-            if updated:
-                await match.save()
-                count += 1
+            await match.save()
+            count += 1
         
         logger.info(f"Migration completed. Updated {count} documents.")
         
