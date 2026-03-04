@@ -453,23 +453,33 @@ async def get_enriched_matches(
         if not job_details:
             continue
 
-        # Filter by country if the user has a country preference set
-        if user_country:
-            job_country = ""
-            if job_details.location and job_details.location.country:
-                job_country = job_details.location.country.strip().lower()
-            if job_country != user_country:
-                continue
-
-        # Filter by city if the user has a city preference set
+        # 3. Filtering logic
+        user_country = (user.country or "").strip().lower()
         user_city = (user.city or "").strip().lower()
-        if user_city:
-            job_city = "not specified"
-            if job_details.location and job_details.location.city:
-                job_city = job_details.location.city.strip().lower()
-            
-            if job_city != user_city and job_city != "not specified":
+        is_user_remote_focused = user_city == "remote" or user.remote_friendly
+
+        if is_user_remote_focused:
+            # If user is remote-friendly or city is "Remote", only show remote jobs
+            # and bypass country/city filtering
+            if not job_details.is_remote:
                 continue
+        else:
+            # Filter by country if the user has a country preference set
+            if user_country:
+                job_country = ""
+                if job_details.location and job_details.location.country:
+                    job_country = job_details.location.country.strip().lower()
+                if job_country != user_country:
+                    continue
+
+            # Filter by city if the user has a city preference set
+            if user_city:
+                job_city = "not specified"
+                if job_details.location and job_details.location.city:
+                    job_city = job_details.location.city.strip().lower()
+                
+                if job_city != user_city and job_city != "not specified":
+                    continue
 
         enriched_results.append(EnrichedMatch(
             match=match,
