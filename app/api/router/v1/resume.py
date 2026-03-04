@@ -14,10 +14,11 @@ from fastapi import (
     Request,
     status,
     Query,
+    BackgroundTasks,
 )
 
 from app.core import get_db_session
-from app.models import ProcessedJob
+from app.models import ProcessedJob, ProcessedResume
 from app.services import (
     ResumeService,
     ScoreImprovementService,
@@ -44,8 +45,10 @@ logger = logging.getLogger(__name__)
 async def upload_resume(
     request: Request,
     token: str,
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     db: Any = Depends(get_db_session),
+    overwrite: bool = Query(True),
 ):
     """
     Accepts a PDF or DOCX file (max 2MB), converts it to HTML/Markdown, and stores it in the database.
@@ -132,6 +135,17 @@ async def upload_resume(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error processing file: {str(e)}",
         )
+
+    # Fetch ProcessedResume to check if it's default and trigger background processing
+    try:
+        resume_doc = await ProcessedResume.find_one(ProcessedResume.resume_id == resume_id)
+        if resume_doc and resume_doc.default:
+            from job_processor.services.processor import JobProcessor
+            processor = JobProcessor(user_id=resume_doc.user_id)
+            background_tasks.add_task(processor._process_new_resume, resume_doc, overwrite=overwrite)
+            logger.info(f"Background processing scheduled for default resume: {resume_id}")
+    except Exception as e:
+        logger.error(f"Failed to schedule background processing for resume {resume_id}: {str(e)}")
 
     return {
         "message": f"File {file.filename} successfully processed as MD and stored in the DB",
