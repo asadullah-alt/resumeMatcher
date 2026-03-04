@@ -476,6 +476,54 @@ async def get_enriched_matches(
             job_details=job_details
         ))
             
+    if not enriched_results:
+        try:
+            # Fetch latest experience from default resume
+            latest_experience = "Not specified"
+            default_resume = await ProcessedResume.find_one(
+                {"user_id": user_id, "default": True}
+            )
+            if default_resume and default_resume.experiences:
+                # Assuming the first experience is the latest one
+                latest_experience = default_resume.experiences[0].job_title
+
+            # Prepare user preferences
+            prefs = []
+            if user.salary_min: prefs.append(f"Min Salary: {user.salary_min}")
+            if user.salary_max: prefs.append(f"Max Salary: {user.salary_max}")
+            if user.visa_sponsorship is not None: prefs.append(f"Visa Sponsorship: {'Yes' if user.visa_sponsorship else 'No'}")
+            if user.remote_friendly is not None: prefs.append(f"Remote Friendly: {'Yes' if user.remote_friendly else 'No'}")
+            if user.country: prefs.append(f"Country: {user.country}")
+            if user.city: prefs.append(f"City: {user.city}")
+            if user.experience: prefs.append(f"Years of Experience: {user.experience}")
+            
+            prefs_str = ", ".join(prefs) if prefs else "None specified"
+
+            # Construct email content
+            admin_email = "asadullahbeg@gmail.com"
+            subject = f"Zero Matches for User: {user.local.email if user.local else user.google.email if user.google else user_id}"
+            
+            email_body = f"""
+            <html>
+                <body>
+                    <h2>Zero Match Notification</h2>
+                    <p>A user has received zero enriched matches.</p>
+                    <ul>
+                        <li><strong>User Email:</strong> {user.local.email if user.local else user.google.email if user.google else 'N/A'}</li>
+                        <li><strong>Latest Job Title:</strong> {latest_experience}</li>
+                        <li><strong>Preferences:</strong> {prefs_str}</li>
+                    </ul>
+                </body>
+            </html>
+            """
+            
+            email_service = EmailService()
+            email_service.send_email(admin_email, subject, email_body)
+            logger.info(f"Zero match notification sent for user {user_id} to {admin_email}")
+            
+        except Exception as e:
+            logger.error(f"Failed to send zero match notification for user {user_id}: {e}")
+
     return enriched_results
 
 @router.get("/details/{job_id}", response_model=ProcessedOpenJobs, status_code=status.HTTP_200_OK)
