@@ -3,11 +3,12 @@ import uuid
 import json
 import tempfile
 import logging
+from dateutil import parser
 
 from markitdown import MarkItDown
 from typing import Any
 
-from app.models import Resume, ProcessedResume
+from app.models import Resume, ProcessedResume, User
 from pydantic import ValidationError
 from typing import Dict, Optional
 
@@ -146,6 +147,117 @@ class ResumeService:
             return ".docx"
         return ""
 
+    def calculate_experience_years(self, experiences: List[Any]) -> float:
+        """
+        Calculates total years of experience from a list of experiences.
+        Handles overlapping intervals and various date formats.
+        """
+        if not experiences:
+            return 0.0
+
+        intervals = []
+        now = datetime.now()
+
+        for exp in experiences:
+            start_str = getattr(exp, "start_date", None)
+            end_str = getattr(exp, "end_date", None)
+            
+            if not start_str:
+                continue
+
+            try:
+                # Parse start date
+                start_dt = parser.parse(str(start_str), fuzzy=True)
+                
+                # Parse end date
+                if not end_str or any(x in str(end_str).lower() for x in ["present", "current", "now"]):
+                    end_dt = now
+                else:
+                    end_dt = parser.parse(str(end_str), fuzzy=True)
+                
+                if start_dt > end_dt:
+                    start_dt, end_dt = end_dt, start_dt
+                    
+                intervals.append((start_dt, end_dt))
+            except (ValueError, TypeError, OverflowError) as e:
+                logger.warning(f"Failed to parse dates for experience calculation ({start_str} - {end_str}): {e}")
+                continue
+
+        if not intervals:
+            return 0.0
+
+        # Merge overlapping intervals
+        intervals.sort(key=lambda x: x[0])
+        merged = []
+        if intervals:
+            curr_start, curr_end = intervals[0]
+            for i in range(1, len(intervals)):
+                next_start, next_end = intervals[i]
+                if next_start <= curr_end:
+                    curr_end = max(curr_end, next_end)
+                else:
+                    merged.append((curr_start, curr_end))
+                    curr_start, curr_end = next_start, next_end
+            merged.append((curr_start, curr_end))
+
+        total_days = sum((end - start).days for start, end in merged)
+        total_years = round(total_days / 365.25, 1)
+        
+        logger.info(f"Calculated {total_years} years of experience from {len(experiences)} entries")
+        return total_years
+
+    def extract_latest_city(self, experiences: List[Any]) -> Optional[str]:
+        """
+        Extracts the city from the most recent experience entry.
+        """
+        if not experiences:
+            return None
+        
+        # Experiences are typically sorted by date descending in the extraction prompt
+        # We take the first one that has a location/city
+        for exp in experiences:
+            # Experience model has 'location' string which might contain city
+            # Or PersonalData has location.city.
+            # User request: "get the city from the default resume latest experience if its present"
+            if hasattr(exp, 'location') and exp.location:
+                # Check if it looks like city, country or just city
+                # LLM extracts it as a string. Let's assume the first part before comma is city.
+                parts = exp.location.split(',')
+                city = parts[0].strip()
+                if city:
+                    return city
+        return None
+
+    async def sync_user_profile_with_default_resume(self, user_id: str) -> bool:
+        """
+        Fetches the default resume for the given user_id, extracts city and experience,
+        and updates the User document.
+        """
+        logger.info(f"Syncing user profile for {user_id} with default resume")
+        
+        # 1. Find default resume for this user
+        resume = await ProcessedResume.find_one(
+            ProcessedResume.user_id == str(user_id),
+            ProcessedResume.default == True
+        )
+        
+        if not resume:
+            logger.warning(f"No default resume found for user {user_id} - sync aborted")
+            return False
+
+        # 2. Update user profile
+        user = await User.get(user_id)
+        if not user:
+            logger.error(f"User with ID {user_id} not found during sync")
+            return False
+
+        user.city = self.extract_latest_city(resume.experiences)
+        user.experience = self.calculate_experience_years(resume.experiences)
+        await user.save()
+        
+        logger.info(f"Successfully synced user profile for {user_id}: city={user.city}, experience={user.experience}")
+        return True
+
     async def _store_resume_in_db(self, text_content: str, content_type: str, token: Optional[str], resume_name: Optional[str]) -> tuple[str, str | None]:
         """
         Stores the parsed resume content in the database.
@@ -235,6 +347,11 @@ class ResumeService:
                 )
                 
                 await processed_resume.insert()
+
+                # Update user profile if this is the default resume
+                if processed_resume.default and user_id:
+                    await self.sync_user_profile_with_default_resume(user_id)
+
                 return True
             except ResumeValidationError:
                 if attempt == max_retries - 1:
@@ -460,6 +577,9 @@ class ResumeService:
         # Set the target resume as default
         target_resume.default = True
         await target_resume.save()
+
+        # Update user profile with latest data from the new default resume
+        await self.sync_user_profile_with_default_resume(user_id)
         
         return True
 

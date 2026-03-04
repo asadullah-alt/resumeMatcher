@@ -26,7 +26,9 @@ async def get_preferences(token: str = Query(..., description="User token")):
         salary_max=user.salary_max,
         visa_sponsorship=user.visa_sponsorship,
         remote_friendly=user.remote_friendly,
-        country=user.country
+        country=user.country,
+        city=user.city,
+        experience=user.experience
     )
 
 @user_router.patch("/preferences", response_model=UserPreferences)
@@ -51,6 +53,10 @@ async def update_preferences(payload: UserPreferencesUpdate):
         user.remote_friendly = payload.remote_friendly
     if payload.country is not None:
         user.country = payload.country
+    if payload.city is not None:
+        user.city = payload.city
+    if payload.experience is not None:
+        user.experience = payload.experience
         
     await user.save()
     

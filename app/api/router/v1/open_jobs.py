@@ -306,6 +306,52 @@ async def process_all_user_resumes(
         "error_user_ids": errors
     }
 
+@router.post("/users/profile/sync", status_code=status.HTTP_200_OK)
+async def sync_user_profile(
+    email: str,
+    admin: User = Depends(get_admin_user),
+    db: Any = Depends(get_db_session)
+):
+    """
+    Syncs a user's city and experience from their default resume.
+    """
+    user = await User.find_one({
+        "$or": [
+            {"local.email": email},
+            {"google.email": email},
+            {"linkedin.email": email}
+        ]
+    })
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    resume_service = ResumeService(db=db)
+    success = await resume_service.sync_user_profile_with_default_resume(str(user.id))
+    
+    if not success:
+         raise HTTPException(status_code=400, detail="Failed to sync profile (maybe no default resume?)")
+         
+    return {"message": f"Successfully synced profile for {email}"}
+
+@router.post("/users/profile/sync-all", status_code=status.HTTP_200_OK)
+async def sync_all_user_profiles(
+    admin: User = Depends(get_admin_user),
+    db: Any = Depends(get_db_session)
+):
+    """
+    Syncs all users' city and experience from their default resumes.
+    """
+    users = await User.find_all().to_list()
+    resume_service = ResumeService(db=db)
+    
+    synced_count = 0
+    for user in users:
+        success = await resume_service.sync_user_profile_with_default_resume(str(user.id))
+        if success:
+            synced_count += 1
+            
+    return {"message": f"Successfully synced {synced_count} user profiles"}
+
 @router.post("/match/user", status_code=status.HTTP_200_OK)
 async def match_user_to_jobs(
     email: str, 
@@ -413,6 +459,16 @@ async def get_enriched_matches(
             if job_details.location and job_details.location.country:
                 job_country = job_details.location.country.strip().lower()
             if job_country != user_country:
+                continue
+
+        # Filter by city if the user has a city preference set
+        user_city = (user.city or "").strip().lower()
+        if user_city:
+            job_city = "not specified"
+            if job_details.location and job_details.location.city:
+                job_city = job_details.location.city.strip().lower()
+            
+            if job_city != user_city and job_city != "not specified":
                 continue
 
         enriched_results.append(EnrichedMatch(
