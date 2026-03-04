@@ -3,14 +3,14 @@ import uuid
 import json
 import tempfile
 import logging
+from datetime import datetime
 from dateutil import parser
 
 from markitdown import MarkItDown
-from typing import Any
+from typing import Any, Dict, Optional, List
 
 from app.models import Resume, ProcessedResume, User
 from pydantic import ValidationError
-from typing import Dict, Optional
 
 from app.agent import AgentManager
 from app.prompt import prompt_factory
