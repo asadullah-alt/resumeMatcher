@@ -32,7 +32,8 @@ from app.services import (
     ResumeKeywordExtractionError,
     JobKeywordExtractionError,
 )
-from app.schemas.pydantic import ResumeImprovementRequest, SetDefaultResumeRequest, ExtensionImprovementRequest
+from app.schemas.pydantic import ResumeImprovementRequest, OpenJobImprovementRequest, SetDefaultResumeRequest, ExtensionImprovementRequest
+from job_processor.models.job import UserJobMatch
 
 resume_router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -312,7 +313,7 @@ async def score_and_improve(
 )
 async def score_and_improve_open_job(
     request: Request,
-    payload: ResumeImprovementRequest,
+    payload: OpenJobImprovementRequest,
     db: Any = Depends(get_db_session),
     stream: bool = Query(
         False, description="Enable streaming response using Server-Sent Events"
@@ -320,9 +321,10 @@ async def score_and_improve_open_job(
 ):
     """
     Scores and improves a resume against an open job description.
+    Accepts match_id (UserJobMatch._id) from the frontend to resolve the job_id.
 
     Raises:
-        HTTPException: If the resume or job is not found.
+        HTTPException: If the resume, match, or job is not found.
     """
     request_id = getattr(request.state, "request_id", str(uuid4()))
     headers = {"X-Request-ID": request_id}
@@ -335,10 +337,26 @@ async def score_and_improve_open_job(
             raise ResumeNotFoundError(
                 message="invalid value passed in `resume_id` field, please try again with valid resume_id."
             )
-        job_id = str(request_payload.get("job_id", ""))
+        
+        # Resolve job_id from UserJobMatch using the match_id sent by frontend
+        match_id = str(request_payload.get("match_id", ""))
+        if not match_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="match_id is required",
+            )
+        
+        match_doc = await UserJobMatch.get(match_id)
+        if not match_doc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No UserJobMatch found with id {match_id}",
+            )
+        
+        job_id = match_doc.job_id
         if not job_id:
             raise JobNotFoundError(
-                message="invalid value passed in `job_id` field, please try again with valid job_id."
+                message="UserJobMatch does not contain a valid job_id."
             )
         
         # Billing: Get user by token
