@@ -443,6 +443,7 @@ async def get_enriched_matches(
             # We still want to return empty or whatever matches were found if any errors occurred
     
     user_country = (user.country or "").strip().lower()
+    user_city = (user.city or "").strip().lower()
 
     enriched_results = []
     for match in matches:
@@ -453,28 +454,35 @@ async def get_enriched_matches(
         if not job_details:
             continue
 
-        # Filter by country if the user has a country preference set
+        enriched_results.append(EnrichedMatch(
+            match=match,
+            job_details=job_details
+        ))
+
+    def get_location_match_score(item: EnrichedMatch) -> bool:
+        job_details = item.job_details
         if user_country:
             job_country = ""
             if job_details.location and job_details.location.country:
                 job_country = job_details.location.country.strip().lower()
             if job_country != user_country:
-                continue
+                return False
 
-        # Filter by city if the user has a city preference set
-        user_city = (user.city or "").strip().lower()
         if user_city:
             job_city = "not specified"
             if job_details.location and job_details.location.city:
                 job_city = job_details.location.city.strip().lower()
             
             if job_city != user_city and job_city != "not specified":
-                continue
+                return False
+                
+        return True
 
-        enriched_results.append(EnrichedMatch(
-            match=match,
-            job_details=job_details
-        ))
+    # Sort so that jobs matching country/city are on top, and then by percentage_match
+    enriched_results.sort(
+        key=lambda x: (get_location_match_score(x), x.match.percentage_match),
+        reverse=True
+    )
             
     if not enriched_results:
         try:
