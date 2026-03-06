@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
 from app.services.cover_letter_service import CoverLetterService
 from app.core import get_db_session
+from job_processor.models.job import UserJobMatch
 cover_letter_router = APIRouter()
 
 def get_cover_letter_service():
@@ -25,14 +26,24 @@ async def get_cover_letter(
 async def get_open_job_cover_letter(
     token: str = Body(..., embed=True),
     resume_id: str = Body(..., embed=True),
-    job_id: str = Body(..., embed=True),
+    match_id: str = Body(..., embed=True),
     service: CoverLetterService = Depends(get_cover_letter_service)
 ):
     try:
+        match_doc = await UserJobMatch.get(match_id)
+        if not match_doc:
+            raise HTTPException(status_code=404, detail=f"No UserJobMatch found with id {match_id}")
+            
+        job_id = match_doc.job_id
+        if not job_id:
+            raise ValueError("UserJobMatch does not contain a valid job_id.")
+            
         cover_letter = await service.generate_open_job_cover_letter(token, resume_id, job_id)
         return {"cover_letter": cover_letter}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except HTTPException as e:
+        raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
