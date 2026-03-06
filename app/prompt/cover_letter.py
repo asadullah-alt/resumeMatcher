@@ -16,6 +16,7 @@ Structure the cover letter as follows:
 2. Body: Highlight key skills, experiences, and achievements from the resume that align with the job requirements in the form of paragraphs.
 3. Conclusion: Reiterate interest in the role and express eagerness to contribute to the company.
 4. Dont add * or | or any other wierd characters in the cover letter.
+5. Dont add things like Introduction, body, conclusion.
 NOTE: ONLY OUTPUT THE COVER LETTER IN MARKDOWN FORMAT.
 
 """
