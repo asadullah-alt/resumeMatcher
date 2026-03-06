@@ -21,6 +21,21 @@ async def get_cover_letter(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@cover_letter_router.post("/getOpenJobCoverletter")
+async def get_open_job_cover_letter(
+    token: str = Body(..., embed=True),
+    resume_id: str = Body(..., embed=True),
+    job_id: str = Body(..., embed=True),
+    service: CoverLetterService = Depends(get_cover_letter_service)
+):
+    try:
+        cover_letter = await service.generate_open_job_cover_letter(token, resume_id, job_id)
+        return {"cover_letter": cover_letter}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @cover_letter_router.get("/")
 async def read_cover_letter(
     job_id: str,

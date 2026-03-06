@@ -300,7 +300,159 @@ async def score_and_improve(
             detail=str(e),
         )
     except Exception as e:
-        logger.error(f"Error: {str(e)} - traceback: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="sorry, something went wrong!",
+        )
+
+
+@resume_router.post(
+    "/improveOpenJob",
+    summary="Score and improve a resume against an open job description",
+)
+async def score_and_improve_open_job(
+    request: Request,
+    payload: ResumeImprovementRequest,
+    db: Any = Depends(get_db_session),
+    stream: bool = Query(
+        False, description="Enable streaming response using Server-Sent Events"
+    ),
+):
+    """
+    Scores and improves a resume against an open job description.
+
+    Raises:
+        HTTPException: If the resume or job is not found.
+    """
+    request_id = getattr(request.state, "request_id", str(uuid4()))
+    headers = {"X-Request-ID": request_id}
+
+    request_payload = payload.model_dump()
+
+    try:
+        resume_id = str(request_payload.get("resume_id", ""))
+        if not resume_id:
+            raise ResumeNotFoundError(
+                message="invalid value passed in `resume_id` field, please try again with valid resume_id."
+            )
+        job_id = str(request_payload.get("job_id", ""))
+        if not job_id:
+            raise JobNotFoundError(
+                message="invalid value passed in `job_id` field, please try again with valid job_id."
+            )
+        
+        # Billing: Get user by token
+        token = str(request_payload.get("token", ""))
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Token is required for billing purposes",
+            )
+        
+        billing_service = BillingService()
+        user = await billing_service.get_user_by_token(token)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+        
+        # Billing: Check and reset credits if needed (monthly reset with rollover)
+        user = await billing_service.check_and_reset_credits(user)
+        
+        # Billing: Check if user has credits available
+        if not await billing_service.has_available_credits(user):
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail="All credits used for this month",
+            )
+        
+        score_improvement_service = ScoreImprovementService(db=db)
+
+        # Read whether the client requested re-analysis or to use cached result
+        analysis_again = bool(request_payload.get("analysis_again", False))
+        
+        # Billing: Check if improvement already exists (to determine if we should charge)
+        existing_improvement = await score_improvement_service._get_improvement(
+            resume_id=resume_id,
+            job_id=job_id
+        )
+        
+        # Billing: Consume credit only if generating NEW improvement (not cached)
+        should_charge = (existing_improvement is None) or analysis_again
+        if should_charge:
+            try:
+                await billing_service.consume_credit(user)
+            except InsufficientCreditsError as e:
+                raise HTTPException(
+                    status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                    detail=str(e),
+                )
+
+        if stream:
+            return StreamingResponse(
+                content=score_improvement_service.run_and_stream_for_open_job(
+                    resume_id=resume_id,
+                    job_id=job_id,
+                    analyze_again=analysis_again,
+                ),
+                media_type="text/event-stream",
+                headers=headers,
+            )
+        else:
+            improvements = await score_improvement_service.run_for_open_job(
+                resume_id=resume_id,
+                job_id=job_id,
+                analyze_again=analysis_again,
+            )
+            # Ensure any non-JSON-serializable types (e.g. PydanticObjectId, datetimes)
+            # are converted to JSON-friendly types before building the response.
+            safe_data = jsonable_encoder(improvements)
+            return JSONResponse(
+                content={
+                    "request_id": request_id,
+                    "data": safe_data,
+                },
+                headers=headers,
+            )
+    except ResumeNotFoundError as e:
+        logger.error(str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
+    except JobNotFoundError as e:
+        logger.error(str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
+    except ResumeParsingError as e:
+        logger.error(str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
+    except JobParsingError as e:
+        logger.error(str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
+    except ResumeKeywordExtractionError as e:
+        logger.warning(str(e))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e),
+        )
+    except JobKeywordExtractionError as e:
+        logger.warning(str(e))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e),
+        )
+    except Exception as e:
+        logger.error(f"Error in improveOpenJob: {str(e)} - traceback: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="sorry, something went wrong!",

@@ -113,6 +113,76 @@ class CoverLetterService:
             logger.error(f"Error generating cover letter: {e}")
             raise   
 
+    async def generate_open_job_cover_letter(self, token: str, resume_id: str, job_id: str) -> str:
+        """
+        Generates a cover letter based on the resume and a ProcessedOpenJobs description.
+        Saves the generated cover letter to the database.
+        """
+        user_id = await self._verify_token_and_get_user_id(token)
+       
+        # Check if cover letter already exists
+        try:
+            existing_cover_letter = await CoverLetter.find_one(
+                CoverLetter.job_id == job_id,
+                CoverLetter.user_id == user_id,
+                CoverLetter.resume_id == resume_id
+            )
+            
+            if existing_cover_letter:
+                return existing_cover_letter.content
+            
+            # Fetch Resume
+            resume = await Resume.find_one(
+                Resume.resume_id == resume_id,
+                Resume.user_id == user_id
+            )
+            if not resume:
+                raise ValueError(f"Resume with id {resume_id} not found")
+            
+            # Fetch ProcessedOpenJob
+            from job_processor.models.job import ProcessedOpenJobs
+            open_job = await ProcessedOpenJobs.find_one(
+                ProcessedOpenJobs.job_id == job_id
+            )
+            if not open_job:
+                raise ValueError(f"Open job with id {job_id} not found")
+                
+            # Prepare Data for Prompt
+            # Format Job Posting
+            job_str = str(open_job.model_dump())
+
+            # Format Resume Details
+            resume_str = resume.content
+
+            # Get Prompt
+            prompt_template = prompt_factory.get("cover_letter")
+            prompt = prompt_template.format(job_str, resume_str)
+
+            # Generate
+            logger.info("Generating cover letter for open job...")
+            cover_letter_content = await self.agent_manager.run(prompt=prompt)
+            
+            # Clean up markdown markers
+            markers = ["```markdown", "```md", "```", "``````"]
+            for marker in markers:
+                cover_letter_content = cover_letter_content.replace(marker, "")
+            cover_letter_content = cover_letter_content.strip()
+
+            logger.info(f"###########cover_letter_content (cleaned): {cover_letter_content}") 
+            # Save to DB
+            cover_letter = CoverLetter(
+                user_id=user_id,
+                job_id=job_id,
+                resume_id=resume_id,
+                content=cover_letter_content
+            )
+            await cover_letter.insert()
+
+            return cover_letter_content
+        except Exception as e:
+            logger.error(f"Error generating open job cover letter: {e}")
+            raise
+
     async def get_cover_letter(self, job_id: str, resume_id: str, token: str) -> Optional[str]:
         user_id = await self._verify_token_and_get_user_id(token)
         cover_letter = await CoverLetter.find_one(

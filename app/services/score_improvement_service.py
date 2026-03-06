@@ -15,7 +15,7 @@ from app.services import ResumeService
 from app.schemas.json import json_schema_factory
 from app.schemas.pydantic import ResumePreviewerModel, ResumeAnalysisModel,StructuredResumeModel
 from app.agent import EmbeddingManager, AgentManager
-from app.models import Resume, Job, ProcessedResume, ProcessedJob, ImprovedResume, Improvement
+from app.models import Resume, Job, ProcessedResume, ProcessedJob, ImprovedResume, Improvement, ProcessedOpenJobs
 from fastapi.encoders import jsonable_encoder
 from .exceptions import (
     ResumeNotFoundError,
@@ -237,6 +237,27 @@ class ScoreImprovementService:
             raise JobNotFoundError(job_id=job_id)
 
         processed_job = await ProcessedJob.find_one(ProcessedJob.job_id == job_id)
+
+        if not processed_job:
+            # Try finding it in ProcessedOpenJobs if not in ProcessedJob
+            processed_job = await ProcessedOpenJobs.find_one(ProcessedOpenJobs.job_id == job_id)
+            if not processed_job:
+                raise JobParsingError(job_id=job_id)
+
+        self._validate_job_keywords(processed_job, job_id)
+
+        return job, processed_job
+
+    async def _get_open_job(self, job_id: str) -> Tuple[Job | None, ProcessedOpenJobs | None]:
+        """
+        Fetches the open job from the database.
+        """
+        job = await Job.find_one(Job.job_id == job_id)
+
+        if not job:
+            raise JobNotFoundError(job_id=job_id)
+
+        processed_job = await ProcessedOpenJobs.find_one(ProcessedOpenJobs.job_id == job_id)
 
         if not processed_job:
             raise JobParsingError(job_id=job_id)
@@ -566,6 +587,125 @@ class ScoreImprovementService:
 
         return execution
 
+    async def run_for_open_job(self, resume_id: str, job_id: str, analyze_again: bool = False) -> Dict:
+        """
+        Main method to run the scoring and improving process for an open job and return dict.
+        
+        Args:
+            resume_id: The ID of the resume to analyze
+            job_id: The ID of the open job to analyze
+            analyze_again: If True, force re-analysis and update existing improvement.
+                          If False, check for existing improvement first and return it if found.
+        
+        Returns:
+            Dictionary containing the improvement analysis results
+        """
+        # If analyze_again is False, try to retrieve existing improvement
+        if not analyze_again:
+            existing_improvement = await self._get_improvement(resume_id, job_id)
+            if existing_improvement:
+                logger.info(
+                    f"Returning cached improvement for resume_id={resume_id}, open_job_id={job_id}"
+                )
+                return jsonable_encoder(existing_improvement.model_dump())
+
+        resume, processed_resume = await self._get_resume(resume_id)
+        job, processed_job = await self._get_open_job(job_id)
+
+        # extracted_keywords is now a list, not a JSON string
+        job_keywords_raw = processed_job.extracted_keywords or []
+        resume_keywords_raw = processed_resume.extracted_keywords or []
+        
+        logger.info(f"EXTRACTED OPEN JOB KEYWORDS: {job_keywords_raw}")
+        logger.info(f"EXTRACTED RESUME KEYWORDS: {resume_keywords_raw}")
+        job_keywords_list = self._normalize_keyword_list(job_keywords_raw)
+        resume_keywords_list = self._normalize_keyword_list(resume_keywords_raw)
+
+        extracted_job_keywords = ", ".join(job_keywords_list)
+        extracted_resume_keywords = ", ".join(resume_keywords_list)
+
+        skill_stats_for_prompt = self._build_skill_comparison(
+            keywords=job_keywords_list,
+            resume_text=resume.content,
+            job_text=job.content,
+        )
+        ats_recommendations = self._build_ats_recommendations(
+            stats=skill_stats_for_prompt,
+            resume_text=resume.content,
+        )
+        skill_priority_text = self._build_skill_priority_text(skill_stats_for_prompt)
+
+        resume_embedding_task = asyncio.create_task(
+            self.embedding_manager.embed(resume.content)
+        )
+        job_kw_embedding_task = asyncio.create_task(
+            self.embedding_manager.embed(extracted_job_keywords)
+        )
+        resume_embedding, extracted_job_keywords_embedding = await asyncio.gather(
+            resume_embedding_task, job_kw_embedding_task
+        )
+
+        cosine_similarity_score = self.calculate_cosine_similarity(
+            extracted_job_keywords_embedding, resume_embedding
+        )
+        logger.info(f"Getting Ready for IMPROVE SCORE WITH LLM (Open Job)")
+        updated_resume, updated_score = await self.improve_score_with_llm(
+            resume=resume.content,
+            extracted_resume_keywords=extracted_resume_keywords,
+            job=job.content,
+            extracted_job_keywords=extracted_job_keywords,
+            previous_cosine_similarity_score=cosine_similarity_score,
+            extracted_job_keywords_embedding=extracted_job_keywords_embedding,
+            ats_recommendations=ats_recommendations,
+            skill_priority_text=skill_priority_text,
+        )
+
+        resume_preview = await self.get_resume_for_previewer(
+            updated_resume=updated_resume
+        )
+
+        resume_analysis = await self.get_resume_analysis(
+            original_resume=resume.content,
+            improved_resume=updated_resume,
+            job_description=job.content,
+            extracted_job_keywords=extracted_job_keywords,
+            extracted_resume_keywords=extracted_resume_keywords,
+            original_score=cosine_similarity_score,
+            new_score=updated_score,
+        )
+
+        skill_comparison = self._build_skill_comparison(
+            keywords=job_keywords_list,
+            resume_text=updated_resume,
+            job_text=job.content,
+        )
+
+        execution = {
+            "resume_id": resume_id,
+            "job_id": job_id,
+            "original_score": cosine_similarity_score,
+            "new_score": updated_score,
+            "updated_resume": markdown.markdown(text=updated_resume),
+            "resume_preview": resume_preview,
+            "details": resume_analysis.get("details" or "") if resume_analysis else "",
+            "commentary": resume_analysis.get("commentary" or "") if resume_analysis else "",
+            "summary": (resume_analysis.get("summary") or "") if resume_analysis else "",
+            "similarity_comparison": resume_analysis.get("similarity_comparison" or "") if resume_analysis else "",
+            "improvements": resume_analysis.get("improvements" or []) if resume_analysis else [],
+            "original_resume_markdown": resume.content,
+            "updated_resume_markdown": updated_resume,
+            "job_description": job.content,
+            "job_keywords": extracted_job_keywords,
+            "skill_comparison": skill_comparison,
+        }
+
+        # Save the improvement to the database
+        await self._save_improvement(resume_id, job_id, execution)
+
+        gc.collect()
+
+        return execution
+
     async def run_and_stream(self, resume_id: str, job_id: str, analyze_again: bool = False) -> AsyncGenerator:
         """
         Main method to run the scoring and improving process with streaming updates.
@@ -610,6 +750,144 @@ class ScoreImprovementService:
 
         extracted_job_keywords = ", ".join(job_keywords_list)
 
+        extracted_resume_keywords = ", ".join(resume_keywords_list)
+
+        skill_stats_for_prompt = self._build_skill_comparison(
+            keywords=job_keywords_list,
+            resume_text=resume.content,
+            job_text=job.content,
+        )
+        ats_recommendations = self._build_ats_recommendations(
+            stats=skill_stats_for_prompt,
+            resume_text=resume.content,
+        )
+        skill_priority_text = self._build_skill_priority_text(skill_stats_for_prompt)
+
+        resume_embedding = await self.embedding_manager.embed(text=resume.content)
+        extracted_job_keywords_embedding = await self.embedding_manager.embed(
+            text=extracted_job_keywords
+        )
+
+        yield f"data: {json.dumps({'status': 'scoring', 'message': 'Calculating compatibility score...'})}\n\n"
+        await asyncio.sleep(3)
+
+        cosine_similarity_score = self.calculate_cosine_similarity(
+            extracted_job_keywords_embedding, resume_embedding
+        )
+
+        yield f"data: {json.dumps({'status': 'scored', 'score': cosine_similarity_score})}\n\n"
+
+        yield f"data: {json.dumps({'status': 'improving', 'message': 'Generating improvement suggestions...'})}\n\n"
+        await asyncio.sleep(3)
+
+        updated_resume, updated_score = await self.improve_score_with_llm(
+            resume=resume.content,
+            extracted_resume_keywords=extracted_resume_keywords,
+            job=job.content,
+            extracted_job_keywords=extracted_job_keywords,
+            previous_cosine_similarity_score=cosine_similarity_score,
+            extracted_job_keywords_embedding=extracted_job_keywords_embedding,
+            ats_recommendations=ats_recommendations,
+            skill_priority_text=skill_priority_text,
+        )
+
+        resume_preview = await self.get_resume_for_previewer(
+            updated_resume=updated_resume
+        )
+
+        resume_analysis = await self.get_resume_analysis(
+            original_resume=resume.content,
+            improved_resume=updated_resume,
+            job_description=job.content,
+            extracted_job_keywords=extracted_job_keywords,
+            extracted_resume_keywords=extracted_resume_keywords,
+            original_score=cosine_similarity_score,
+            new_score=updated_score,
+        )
+
+        skill_comparison = self._build_skill_comparison(
+            keywords=job_keywords_list,
+            resume_text=updated_resume,
+            job_text=job.content,
+        )
+
+        if resume_analysis and resume_analysis.get("improvements"):
+            for i, suggestion in enumerate(resume_analysis["improvements"]):
+                payload = {
+                    "status": "suggestion",
+                    "index": i,
+                    "text": suggestion.get("suggestion", ""),
+                    "reference": suggestion.get("lineNumber"),
+                }
+                yield f"data: {json.dumps(payload)}\n\n"
+                await asyncio.sleep(0.2)
+
+        final_result = {
+            "resume_id": resume_id,
+            "job_id": job_id,
+            "original_score": cosine_similarity_score,
+            "new_score": updated_score,
+            "updated_resume": markdown.markdown(text=updated_resume),
+            "resume_preview": resume_preview,
+            "details": resume_analysis.get("details") if resume_analysis else "",
+            "commentary": resume_analysis.get("commentary") if resume_analysis else "",
+            "summary": (resume_analysis.get("summary") or "") if resume_analysis else "",
+            "similarity_comparison": resume_analysis.get("similarity_comparison" or "") if resume_analysis else "",
+            "improvements": resume_analysis.get("improvements") if resume_analysis else [],
+            "original_resume_markdown": resume.content,
+            "updated_resume_markdown": updated_resume,
+            "job_description": job.content,
+            "job_keywords": extracted_job_keywords,
+            "skill_comparison": skill_comparison,
+        }
+
+        # Save the improvement to the database
+        await self._save_improvement(resume_id, job_id, final_result)
+
+        yield f"data: {json.dumps({'status': 'completed', 'result': final_result})}\n\n"
+
+    async def run_and_stream_for_open_job(self, resume_id: str, job_id: str, analyze_again: bool = False) -> AsyncGenerator:
+        """
+        Main method to run the scoring and improving process for an open job with streaming updates.
+        
+        Args:
+            resume_id: The ID of the resume to analyze
+            job_id: The ID of the open job to analyze
+            analyze_again: If True, force re-analysis and update existing improvement.
+                          If False, check for existing improvement first and return it if found.
+        
+        Yields:
+            Server-sent event formatted strings with progress updates and final result
+        """
+
+        yield f"data: {json.dumps({'status': 'starting', 'message': 'Analyzing resume and open job description...'})}\n\n"
+        await asyncio.sleep(2)
+
+        # If analyze_again is False, try to retrieve existing improvement
+        if not analyze_again:
+            existing_improvement = await self._get_improvement(resume_id, job_id)
+            if existing_improvement:
+                logger.info(
+                    f"Returning cached improvement for resume_id={resume_id}, open_job_id={job_id}"
+                )
+                final_result = jsonable_encoder(existing_improvement.model_dump())
+                yield f"data: {json.dumps({'status': 'completed', 'result': final_result})}\n\n"
+                return
+
+        resume, processed_resume = await self._get_resume(resume_id)
+        job, processed_job = await self._get_open_job(job_id)
+
+        yield f"data: {json.dumps({'status': 'parsing', 'message': 'Parsing resume content...'})}"
+        await asyncio.sleep(2)
+
+        # extracted_keywords is now a list, not JSON string
+        job_keywords_raw = processed_job.extracted_keywords or []
+        resume_keywords_raw = processed_resume.extracted_keywords or []
+
+        job_keywords_list = self._normalize_keyword_list(job_keywords_raw)
+        resume_keywords_list = self._normalize_keyword_list(resume_keywords_raw)
+
+        extracted_job_keywords = ", ".join(job_keywords_list)
         extracted_resume_keywords = ", ".join(resume_keywords_list)
 
         skill_stats_for_prompt = self._build_skill_comparison(
