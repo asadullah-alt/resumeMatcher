@@ -176,9 +176,41 @@ async def open_job(
             )
 
         job_service = JobService(db)
-        job_data = await job_service.get_job_without_token(
-            job_id=job_id
-        )
+        try:
+            job_data = await job_service.get_job_without_token(
+                job_id=job_id
+            )
+        except JobNotFoundError:
+            logger.info(f"Job {job_id} not found in processed_job, trying ProcessedOpenJobs")
+            from app.models import ProcessedOpenJobs
+            processed_open_job = await ProcessedOpenJobs.find_one({"job_id": job_id})
+            
+            if not processed_open_job:
+                raise JobNotFoundError(
+                    message=f"Job with id {job_id} not found in any collection"
+                )
+            
+            # Format data to match JobService.get_job_without_token output
+            job_data = {
+                "job_id": processed_open_job.job_id,
+                "processed_job": {
+                    "jobUrl": processed_open_job.job_url,
+                    "jobPosition": processed_open_job.job_title,
+                    "companyProfile": processed_open_job.company_profile.model_dump() if processed_open_job.company_profile else None,
+                    "location": processed_open_job.location.model_dump() if processed_open_job.location else None,
+                    "date_posted": processed_open_job.date_posted,
+                    "employment_type": processed_open_job.employment_type,
+                    "jobSummary": processed_open_job.job_summary,
+                    "keyResponsibilities": processed_open_job.key_responsibilities,
+                    "qualifications": processed_open_job.qualifications.model_dump() if processed_open_job.qualifications else None,
+                    "compensationAndBenefits": processed_open_job.compensation_and_benefits.model_dump() if hasattr(processed_open_job.compensation_and_benefits, 'model_dump') else processed_open_job.compensation_and_benefits,
+                    "applicationInfo": processed_open_job.application_info.model_dump() if processed_open_job.application_info else None,
+                    "isVisaSponsored": processed_open_job.is_visa_sponsored,
+                    "isRemote": processed_open_job.is_remote,
+                    "extractedKeywords": processed_open_job.extracted_keywords,
+                    "processed_at": processed_open_job.processed_at.isoformat() if processed_open_job.processed_at else None,
+                }
+            }
         
         if not job_data:
             raise JobNotFoundError(
