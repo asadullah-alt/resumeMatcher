@@ -1,7 +1,10 @@
 import asyncio
 import logging
 import traceback
+import secrets
+from datetime import datetime, timezone
 from typing import List, Any
+
 from fastapi import APIRouter, status, Header, HTTPException, Depends
 from bs4 import BeautifulSoup
 from app.models.job import Job, ProcessedOpenJobs
@@ -153,7 +156,13 @@ async def create_open_jobs(jobs: List[Job], admin: User = Depends(get_admin_user
     jobs_to_process: list = []
 
     for job_data in jobs:
-        logger.info(f"[Job Process] Handling job_id: {job_data.job_id} | url: {job_data.job_url}")
+        # Generate a unique job_id based on current time
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+        unique_suffix = secrets.token_hex(4)
+        job_data.job_id = f"{timestamp}-{unique_suffix}"
+
+        logger.info(f"[Job Process] Generated unique job_id: {job_data.job_id} | url: {job_data.job_url}")
+
         
         # Check if job already exists with public=True
         existing_job = await Job.find_one({"job_url": job_data.job_url, "public": True})
