@@ -9,6 +9,7 @@ from app.prompt import prompt_factory
 from app.schemas.json import json_schema_factory
 from app.models import Job, ProcessedOpenJobs
 from app.schemas.pydantic import StructuredJobModel
+from app.services.google_indexing_service import GoogleIndexingService
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,8 @@ class OpenJobService:
                 model_provider="ollama",
                 model="gpt-oss-safeguard:20b"
             )
+        self.google_indexing_service = GoogleIndexingService()
+
 
     async def run(self, job_id: str, user_id: str, content: str, job_url: str = None) -> Optional[ProcessedOpenJobs]:
         """
@@ -82,7 +85,15 @@ class OpenJobService:
 
         processed_job.extracted_keywords = extracted_kw
         await processed_job.insert()
+        
+        # Notify Google Search Indexing
+        try:
+            self.google_indexing_service.notify_job_added(job_id)
+        except Exception as e:
+            logger.error(f"Failed to notify Google Indexing: {e}")
+
         logger.info(f"Successfully processed and stored open job: {job_id}")
+
         return processed_job
 
     def fix_nested_json_strings(self, data: Dict[str, Any]) -> Dict[str, Any]:

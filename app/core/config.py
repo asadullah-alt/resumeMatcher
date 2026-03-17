@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     EMBEDDING_BASE_URL: Optional[str] = None
     EMBEDDING_MODEL: Optional[str] = "dengcao/Qwen3-Embedding-0.6B:Q8_0"
     
+    # Google Indexing API settings
+    GOOGLE_INDEXING_CREDENTIALS_PATH: str = os.path.join(_BACKEND_ROOT, "service-account-key.json")
+    FRONTEND_BASE_URL: str = "https://bhaikaamdo.com"
+
+    
     model_config = SettingsConfigDict(
         env_file=(
             os.path.join(_BACKEND_ROOT, ".env"),
