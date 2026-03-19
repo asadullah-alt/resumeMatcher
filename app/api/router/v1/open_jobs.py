@@ -809,3 +809,77 @@ async def send_match_notification(
         return {"message": f"Successfully sent match notification to {request.user_email}"}
     else:
         raise HTTPException(status_code=500, detail="Failed to send notification email.")
+
+@router.post("/send-match-notifications-all", status_code=status.HTTP_200_OK)
+async def send_match_notifications_all(
+    admin: User = Depends(get_admin_user)
+):
+    """
+    Finds all unique users in 'UserJobMatch' and sends them a notification email.
+    """
+    logger.info("--- [send_match_notifications_all] Batch notification process started ---")
+    
+    # 1. Get all unique user_ids from UserJobMatch
+    try:
+        user_ids = await UserJobMatch.get_motor_collection().distinct("user_id")
+    except Exception as e:
+        logger.error(f"Failed to fetch unique user_ids from UserJobMatch: {e}")
+        # Fallback to fetching all and extracting unique set if motor collection is not directly accessible
+        all_matches = await UserJobMatch.find_all().to_list()
+        user_ids = {m.user_id for m in all_matches}
+        
+    logger.info(f"Found {len(user_ids)} unique users with matches.")
+    
+    email_service = EmailService()
+    sent_count = 0
+    failed_count = 0
+    skipped_count = 0
+    
+    for user_id in user_ids:
+        try:
+            # Note: user_id is a string, Beanie handles it
+            user = await User.get(user_id)
+            if not user:
+                logger.warning(f"User {user_id} not found in database, skipping.")
+                skipped_count += 1
+                continue
+                
+            # Determine the best email address
+            to_email = None
+            if user.local and user.local.email:
+                to_email = user.local.email
+            elif user.google and user.google.email:
+                to_email = user.google.email
+            elif user.linkedin and user.linkedin.email:
+                to_email = user.linkedin.email
+            elif user.facebook and user.facebook.email:
+                to_email = user.facebook.email
+                
+            if not to_email:
+                logger.warning(f"User {user_id} has no valid email address, skipping.")
+                skipped_count += 1
+                continue
+                
+            subject = "Your top matches are ready"
+            success = email_service.send_email(to_email, subject, EMAIL_TEMPLATE_MATCHES)
+            
+            if success:
+                sent_count += 1
+                logger.info(f"Notification sent to {to_email} (ID: {user_id})")
+            else:
+                failed_count += 1
+                logger.error(f"Failed to send notification to {to_email} (ID: {user_id})")
+                
+        except Exception as e:
+            logger.error(f"Error processing notification for user {user_id}: {e}")
+            failed_count += 1
+            
+    logger.info(f"--- [send_match_notifications_all] Finished. Sent: {sent_count}, Failed: {failed_count}, Skipped: {skipped_count} ---")
+    
+    return {
+        "message": "Batch notification process completed.",
+        "unique_users_found": len(user_ids),
+        "emails_sent": sent_count,
+        "emails_failed": failed_count,
+        "users_skipped_no_email_or_not_found": skipped_count
+    }
