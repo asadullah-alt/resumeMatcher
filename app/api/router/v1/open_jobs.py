@@ -428,10 +428,7 @@ async def get_enriched_matches(
     user_id = str(user.id)
     
     # 1. Initial lookup for matches > 30
-    matches = await UserJobMatch.find(
-        UserJobMatch.user_id == user_id,
-        UserJobMatch.percentage_match > 30
-    ).to_list()
+    matches = []
     
     # 2. If no matches found, trigger processor
     if not matches:
