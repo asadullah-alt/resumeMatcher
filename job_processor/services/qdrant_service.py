@@ -168,3 +168,58 @@ class QdrantService:
         except Exception as e:
             logger.error(f"Error searching Qdrant: {e}")
             return []
+
+    def get_similarity_score(self, dense_vector: List[float], job_id: str) -> float:
+        """
+        Retrieves the exact semantic similarity (cosine) for a specific job_id.
+        This provides a stable 'Match Percentage' regardless of overall search rank.
+        """
+        try:
+            results = self.client.query_points(
+                collection_name=self.job_collection,
+                query=dense_vector,
+                using="dense",
+                filter=qmodels.Filter(
+                    must=[
+                        qmodels.FieldCondition(
+                            key="job_id",
+                            match=qmodels.MatchValue(value=job_id)
+                        )
+                    ]
+                ),
+                limit=1,
+            )
+            
+            if results.points:
+                # Dense similarity is already in the [0, 1] range for Cosine typically
+                return results.points[0].score
+            return 0.0
+        except Exception as e:
+            logger.error(f"Error getting similarity score from Qdrant: {e}")
+            return 0.0
+
+    def get_bulk_similarity_scores(self, dense_vector: List[float], job_ids: List[str]) -> Dict[str, float]:
+        """
+        Retrieves scores for a list of job_ids efficiently.
+        """
+        try:
+            results = self.client.query_points(
+                collection_name=self.job_collection,
+                query=dense_vector,
+                using="dense",
+                filter=qmodels.Filter(
+                    must=[
+                        qmodels.FieldCondition(
+                            key="job_id",
+                            match=qmodels.MatchAny(any=job_ids)
+                        )
+                    ]
+                ),
+                limit=len(job_ids),
+            )
+            
+            scores = {hit.payload.get("job_id"): hit.score for hit in results.points}
+            return scores
+        except Exception as e:
+            logger.error(f"Error getting bulk similarity scores: {e}")
+            return {}

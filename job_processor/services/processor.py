@@ -454,21 +454,29 @@ class JobProcessor:
             logger.warning(f"[User {user_id}] Incomplete vectors for resume {resume_id} — matching aborted")
             return
 
-        # 3. Search Qdrant for matching jobs
+        # 3. Search Qdrant for matching jobs (Hybrid search for ranking)
         logger.info(f"[User {user_id}] Searching for top matching jobs")
-        matches = self.qdrant.search_jobs(dense_vec, sparse_vec.model_dump() if hasattr(sparse_vec, "model_dump") else sparse_vec, limit=1000)
+        hybrid_matches = self.qdrant.search_jobs(dense_vec, sparse_vec.model_dump() if hasattr(sparse_vec, "model_dump") else sparse_vec, limit=1000)
+        
+        if not hybrid_matches:
+            logger.info(f"[User {user_id}] No matching jobs found in Qdrant")
+            return []
 
-        # 4. Save/Update match results in MongoDB
+        # 4. Get exact semantic similarity scores for these candidates for consistent percentage display
+        job_ids = [m["job_id"] for m in hybrid_matches]
+        similarity_scores = self.qdrant.get_bulk_similarity_scores(dense_vec, job_ids)
+
+        # 5. Save/Update match results in MongoDB
         results = []
-        for match in matches:
+        for match in hybrid_matches:
             job_id = match["job_id"]
-            percentage = min(match["score"] * 100, 100.0)
+            
+            # Use semantic similarity if available, fallback to something safe
+            similarity = similarity_scores.get(job_id, 0.0)
+            percentage = min(max(similarity * 100, 0.0), 100.0)
             
             # Fetch job_url from ProcessedOpenJobs
             processed_job = await ProcessedOpenJobs.find_one({"job_id": str(job_id)})
-            if(processed_job.job_url=="https://www.linkedin.com/jobs/view/4398001165/?alternateChannel=search&eBP=NOT_ELIGIBLE_FOR_CHARGING&refId=DeWctflgcSbZ3RYpjE5DmA%3D%3D&trackingId=mTApppLxzUXG48csitaQxA%3D%3D"):
-                print("Found the job")
-                print ("PERCENTAGE",percentage)    
             job_url = processed_job.job_url if processed_job else None
 
             # Check if match already exists
@@ -545,27 +553,10 @@ class JobProcessor:
             logger.warning(f"[User {user_id}] Incomplete vectors for resume {resume_id}")
             return 0.0
 
-        # 4. Search Qdrant for this specific job
-        # We use a filter to restrict the search to just this job_id
-        point_id = _job_uuid(job_id)
-        filter = qmodels.Filter(
-            must=[
-                qmodels.HasIdCondition(has_id=[point_id])
-            ]
-        )
+        # 4. Get exact semantic similarity score for this job (consistent with bulk match)
+        similarity = self.qdrant.get_similarity_score(dense_vec, job_id)
+        percentage = min(max(similarity * 100, 0.0), 100.0)
         
-        matches = self.qdrant.search_jobs(
-            dense_vec, 
-            sparse_vec.model_dump() if hasattr(sparse_vec, "model_dump") else sparse_vec, 
-            limit=1,
-            filter=filter
-        )
-
-        if not matches:
-            logger.warning(f"[User {user_id}] No match found in Qdrant for job {job_id}")
-            return 0.0
-            
-        percentage = min(matches[0]["score"] * 100, 100.0)
         logger.info(f"[User {user_id}] Match percentage for job {job_id}: {percentage}%")
         
         return percentage
