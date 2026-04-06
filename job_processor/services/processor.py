@@ -513,6 +513,13 @@ class JobProcessor:
         # Sort results by percentage match descending
         results.sort(key=lambda x: x.percentage_match, reverse=True)
 
+        # DEBUG: Find specific job target for user
+        target_url = "https://www.linkedin.com/jobs/view/4398001165/?alternateChannel=search&eBP=NOT_ELIGIBLE_FOR_CHARGING&refId=DeWctflgcSbZ3RYpjE5DmA%3D%3D&trackingId=mTApppLxzUXG48csitaQxA%3D%3D"
+        for res in results:
+            if res.job_url == target_url:
+                logger.info(f"--- [DEBUG] Target Job Found! Percentage: {res.percentage_match}% ---")
+                break
+
         logger.info(f"[User {user_id}] Successfully matched with {len(results)} jobs")
         return results
 
