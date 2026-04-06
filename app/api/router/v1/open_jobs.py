@@ -2,7 +2,7 @@ import asyncio
 import logging
 import traceback
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import List, Any
 
 from fastapi import APIRouter, status, Header, HTTPException, Depends
@@ -530,7 +530,26 @@ async def get_enriched_matches(
         job_details = await ProcessedOpenJobs.find_one(
             ProcessedOpenJobs.job_id == match.job_id
         )
+        
         if not job_details:
+            continue
+
+        # Filter logic (no older than 20 days, must have posted date, must have company name)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=20)
+        
+        # 1. Age check
+        job_processed_at = job_details.processed_at
+        if job_processed_at.tzinfo is None:
+            job_processed_at = job_processed_at.replace(tzinfo=timezone.utc)
+        if job_processed_at < cutoff_date:
+            continue
+            
+        # 2. Posted date check
+        if not job_details.date_posted or str(job_details.date_posted).strip() == "":
+            continue
+            
+        # 3. Company name check
+        if not job_details.company_profile or not job_details.company_profile.companyName or str(job_details.company_profile.companyName).strip() == "":
             continue
 
         enriched_results.append(EnrichedMatch(
@@ -538,30 +557,11 @@ async def get_enriched_matches(
             job_details=job_details
         ))
 
-    # def get_location_match_score(item: EnrichedMatch) -> bool:
-    #     job_details = item.job_details
-    #     if user_country:
-    #         job_country = ""
-    #         if job_details.location and job_details.location.country:
-    #             job_country = job_details.location.country.strip().lower()
-    #         if job_country != user_country:
-    #             return False
-
-    #     if user_city:
-    #         job_city = "not specified"
-    #         if job_details.location and job_details.location.city:
-    #             job_city = job_details.location.city.strip().lower()
-            
-    #         if job_city != user_city and job_city != "not specified":
-    #             return False
-                
-    #     return True
-
-    # # Sort so that jobs matching country/city are on top, and then by percentage_match
-    # enriched_results.sort(
-    #     key=lambda x: (get_location_match_score(x), x.match.percentage_match),
-    #     reverse=True
-    # )
+    # Sort by percentage_match descending
+    enriched_results.sort(
+        key=lambda x: x.match.percentage_match,
+        reverse=True
+    )
             
     if not enriched_results:
         try:
