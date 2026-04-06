@@ -478,13 +478,23 @@ class JobProcessor:
             if not processed_job:
                 continue
                 
-            # Filter by age (processed_at)
-            job_age = processed_job.processed_at
-            if job_age.tzinfo is None:
-                job_age = job_age.replace(tzinfo=UTC)
+            # Filter by age (prefer date_posted, fallback to processed_at)
+            job_date = None
+            if processed_job.date_posted and str(processed_job.date_posted).strip() != "":
+                try:
+                    job_date = parser.parse(str(processed_job.date_posted))
+                except Exception:
+                    job_date = None
+            
+            if not job_date:
+                job_date = processed_job.processed_at
                 
-            if job_age < cutoff_date:
-                logger.info(f"[User {user_id}] Job {job_id} is older than 20 days — skipping match")
+            # Ensure timezone awareness
+            if job_date.tzinfo is None:
+                job_date = job_date.replace(tzinfo=UTC)
+                
+            if job_date < cutoff_date:
+                logger.info(f"[User {user_id}] Job {job_id} (Date: {job_date}) is older than 20 days — skipping match")
                 continue
             
             # Use semantic similarity if available, fallback to something safe
@@ -518,8 +528,9 @@ class JobProcessor:
                 job_url=job_url,
                 percentage_match=percentage
             )
-            await match_doc.insert()
-            results.append(match_doc)
+            if match_doc.percentage_match > 50:
+                await match_doc.insert()
+                results.append(match_doc)
 
         # Sort results by percentage match descending
         results.sort(key=lambda x: x.percentage_match, reverse=True)

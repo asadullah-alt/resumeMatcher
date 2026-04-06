@@ -4,6 +4,7 @@ import traceback
 import secrets
 from datetime import datetime, timezone, timedelta
 from typing import List, Any
+from dateutil import parser
 
 from fastapi import APIRouter, status, Header, HTTPException, Depends
 from bs4 import BeautifulSoup
@@ -537,11 +538,21 @@ async def get_enriched_matches(
         # Filter logic (no older than 20 days, must have posted date, must have company name)
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=20)
         
-        # 1. Age check
-        job_processed_at = job_details.processed_at
-        if job_processed_at.tzinfo is None:
-            job_processed_at = job_processed_at.replace(tzinfo=timezone.utc)
-        if job_processed_at < cutoff_date:
+        # 1. Age check (prefer date_posted, fallback to processed_at)
+        job_date = None
+        if job_details.date_posted and str(job_details.date_posted).strip() != "":
+            try:
+                job_date = parser.parse(str(job_details.date_posted))
+            except Exception:
+                job_date = None
+        
+        if not job_date:
+            job_date = job_details.processed_at
+            
+        if job_date.tzinfo is None:
+            job_date = job_date.replace(tzinfo=timezone.utc)
+            
+        if job_date < cutoff_date:
             continue
             
         # 2. Posted date check
