@@ -13,7 +13,7 @@ import os
 import tempfile
 import re
 import json
-from datetime import datetime
+from datetime import datetime, UTC, timedelta
 from dateutil.relativedelta import relativedelta
 from dateutil import parser
 
@@ -468,19 +468,30 @@ class JobProcessor:
 
         # 5. Save/Update match results in MongoDB
         results = []
+        cutoff_date = datetime.now(UTC) - timedelta(days=20)
+        
         for match in hybrid_matches:
             job_id = match["job_id"]
+            
+            # Fetch job details and check age
+            processed_job = await ProcessedOpenJobs.find_one({"job_id": str(job_id)})
+            if not processed_job:
+                continue
+                
+            # Filter by age (processed_at)
+            job_age = processed_job.processed_at
+            if job_age.tzinfo is None:
+                job_age = job_age.replace(tzinfo=UTC)
+                
+            if job_age < cutoff_date:
+                logger.info(f"[User {user_id}] Job {job_id} is older than 20 days — skipping match")
+                continue
             
             # Use semantic similarity if available, fallback to something safe
             similarity = similarity_scores.get(job_id, 0.0)
             percentage = min(max(similarity * 100, 0.0), 100.0)
             
-            # Fetch job_url from ProcessedOpenJobs
-            processed_job = await ProcessedOpenJobs.find_one({"job_id": str(job_id)})
-            if(processed_job.job_url=="https://www.linkedin.com/jobs/view/4398001165/?alternateChannel=search&eBP=NOT_ELIGIBLE_FOR_CHARGING&refId=DeWctflgcSbZ3RYpjE5DmA%3D%3D&trackingId=mTApppLxzUXG48csitaQxA%3D%3D"):
-                print("Found the job")
-                print ("PERCENTAGE",percentage)    
-            job_url = processed_job.job_url if processed_job else None
+            job_url = processed_job.job_url
 
             # Check if match already exists
             exists = await UserJobMatch.find_one({

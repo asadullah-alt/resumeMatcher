@@ -458,6 +458,19 @@ async def match_single_job(
         logger.error(f"  -> [CRITICAL] Error calculating single match: {e}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Internal matching error: {str(e)}")
 
+@router.get("/vectors/weighted-count", status_code=status.HTTP_200_OK)
+async def get_weighted_vector_count():
+    """
+    Returns the total number of open_jobs_vectors multiplied by 1000.
+    """
+    count = await OpenJobsVector.count()
+    weighted_count = count * 1000
+    
+    return {
+        "total_vectors": count,
+        "weighted_count": weighted_count
+    }
+
 @router.get("/vectors", response_model=List[OpenJobsVector], status_code=status.HTTP_200_OK)
 async def get_open_jobs_vectors(admin: User = Depends(get_admin_user)):
     """
