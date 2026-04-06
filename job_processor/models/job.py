@@ -99,11 +99,11 @@ class ProcessedOpenJobs(Document):
 
     # Extra functionality
     analyzed: bool = False
-    expires_at: datetime = Field(default_factory=lambda: datetime.utcnow() + timedelta(days=30))
+    expires_at: datetime = Field(default_factory=lambda: datetime.now(UTC) + timedelta(days=30))
    
     # Metadata fields
-    processed_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    processed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     class Settings:
         name = "ProcessedOpenJobs"
