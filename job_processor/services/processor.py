@@ -418,7 +418,7 @@ class JobProcessor:
             payload=payload,
         )
         logger.info(f"[Job {job_id}] Pipeline completed successfully — vector upserted to Qdrant")
-    async def match_user_resumes_to_jobs(self, user_id: str, overwrite: bool = False):
+    async def match_user_resumes_to_jobs(self, user_id: str, overwrite: bool = True):
         """
         Matches the user's default resume vectors against existing open job vectors.
         Saves the match percentages to UserJobMatch collection.
