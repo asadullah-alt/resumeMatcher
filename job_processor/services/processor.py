@@ -5,7 +5,8 @@ from app.models.resume import ProcessedResume, Location as ResumeLocation
 from app.models.user import User
 from job_processor.services.llm_service import LLMService
 from job_processor.services.vector_service import VectorService
-from job_processor.services.qdrant_service import QdrantService
+from job_processor.services.qdrant_service import QdrantService, _job_uuid
+from qdrant_client.http import models as qmodels
 from job_processor.logger import get_logger
 
 import os
@@ -500,3 +501,68 @@ class JobProcessor:
 
         logger.info(f"[User {user_id}] Successfully matched with {len(results)} jobs")
         return results
+
+    async def calculate_single_match(self, job_url: str, user_id: str) -> float:
+        """
+        Calculates the match percentage for a specific job URL and user.
+        """
+        logger.info(f"[User {user_id}] Calculating match for single job: {job_url}")
+        
+        # 1. Find the job by URL
+        processed_job = await ProcessedOpenJobs.find_one(ProcessedOpenJobs.job_url == job_url)
+        if not processed_job:
+            logger.warning(f"Job with URL {job_url} not found in ProcessedOpenJobs")
+            return 0.0
+            
+        job_id = processed_job.job_id
+        
+        # 2. Find default resume for this user
+        resume = await ProcessedResume.find_one(
+            ProcessedResume.user_id == str(user_id),
+            ProcessedResume.default == True
+        )
+        
+        if not resume:
+            logger.warning(f"[User {user_id}] No default processed resume found")
+            return 0.0
+            
+        resume_id = resume.resume_id
+
+        # 3. Retrieve vectors from Qdrant
+        point_data = self.qdrant.get_point_by_id(self.qdrant.resume_collection, resume_id)
+        if not point_data or "vectors" not in point_data:
+            logger.warning(f"[User {user_id}] Vectors for resume {resume_id} not found in Qdrant")
+            return 0.0
+
+        vectors = point_data["vectors"]
+        dense_vec = vectors.get("dense")
+        sparse_vec = vectors.get("sparse")
+
+        if not dense_vec or not sparse_vec:
+            logger.warning(f"[User {user_id}] Incomplete vectors for resume {resume_id}")
+            return 0.0
+
+        # 4. Search Qdrant for this specific job
+        # We use a filter to restrict the search to just this job_id
+        point_id = _job_uuid(job_id)
+        filter = qmodels.Filter(
+            must=[
+                qmodels.HasIdCondition(has_id=[point_id])
+            ]
+        )
+        
+        matches = self.qdrant.search_jobs(
+            dense_vec, 
+            sparse_vec.model_dump() if hasattr(sparse_vec, "model_dump") else sparse_vec, 
+            limit=1,
+            filter=filter
+        )
+
+        if not matches:
+            logger.warning(f"[User {user_id}] No match found in Qdrant for job {job_id}")
+            return 0.0
+            
+        percentage = min(matches[0]["score"] * 100, 100.0)
+        logger.info(f"[User {user_id}] Match percentage for job {job_id}: {percentage}%")
+        
+        return percentage

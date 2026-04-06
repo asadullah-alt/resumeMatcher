@@ -11,7 +11,11 @@ from app.models.job import Job, ProcessedOpenJobs
 from job_processor.models.job import OpenJobsVector, UserJobMatch
 from app.services.open_job_service import OpenJobService
 from app.services.email_service import EmailService
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+class SingleMatchRequest(BaseModel):
+    email: str
+    job_url: str = Field(..., alias="jobUrl")
 from app.models.user import User
 from app.models.resume import Resume, ProcessedResume
 from app.services import ResumeService
@@ -396,6 +400,47 @@ async def match_user_to_jobs(
         }
     except Exception as e:
         logger.error(f"Failed to match user {email} with jobs: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Internal matching error: {str(e)}")
+
+@router.post("/match/single", status_code=status.HTTP_200_OK)
+async def match_single_job(
+    request: SingleMatchRequest,
+    admin: User = Depends(get_admin_user)
+):
+    """
+    Calculates the match percentage for a specific job URL and user email.
+    """
+    email = request.email
+    job_url = request.job_url
+    
+    logger.info(f"--- [match_single_job] Request for email: {email}, job_url: {job_url} ---")
+    
+    user = await User.find_one({
+        "$or": [
+            {"local.email": email},
+            {"google.email": email}
+        ]
+    })
+    
+    if not user:
+        logger.error(f"  -> User not found: {email}")
+        raise HTTPException(status_code=404, detail=f"User with email {email} not found")
+
+    user_id = str(user.id)
+    from job_processor.services.processor import JobProcessor
+    processor = JobProcessor(user_id=user_id)
+    
+    try:
+        match_percentage = await processor.calculate_single_match(job_url, user_id)
+        
+        return {
+            "message": "Successfully calculated match percentage.",
+            "email": email,
+            "job_url": job_url,
+            "match_percentage": match_percentage
+        }
+    except Exception as e:
+        logger.error(f"  -> [CRITICAL] Error calculating single match: {e}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Internal matching error: {str(e)}")
 
 @router.get("/vectors", response_model=List[OpenJobsVector], status_code=status.HTTP_200_OK)

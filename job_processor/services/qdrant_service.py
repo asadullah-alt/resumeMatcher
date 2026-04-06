@@ -126,7 +126,7 @@ class QdrantService:
             logger.error(f"Error retrieving point from Qdrant: {e}")
             return None
 
-    def search_jobs(self, dense_vector: List[float], sparse_vector: Dict[str, Any], limit: int = 20) -> List[Dict[str, Any]]:
+    def search_jobs(self, dense_vector: List[float], sparse_vector: Dict[str, Any], limit: int = 20, filter: Optional[qmodels.Filter] = None) -> List[Dict[str, Any]]:
         """
         Performs a hybrid search (dense + sparse) on the jobs collection.
         Uses Reciprocal Rank Fusion or simple score addition if not available.
@@ -144,11 +144,13 @@ class QdrantService:
                         query=dense_vector,
                         using="dense",
                         limit=limit,
+                        filter=filter
                     ),
                     qmodels.Prefetch(
                         query=sparse,
                         using="sparse",
                         limit=limit,
+                        filter=filter
                     ),
                 ],
                 query=qmodels.FusionQuery(fusion=qmodels.Fusion.RRF),
