@@ -525,30 +525,30 @@ async def get_enriched_matches(
             job_details=job_details
         ))
 
-    def get_location_match_score(item: EnrichedMatch) -> bool:
-        job_details = item.job_details
-        if user_country:
-            job_country = ""
-            if job_details.location and job_details.location.country:
-                job_country = job_details.location.country.strip().lower()
-            if job_country != user_country:
-                return False
+    # def get_location_match_score(item: EnrichedMatch) -> bool:
+    #     job_details = item.job_details
+    #     if user_country:
+    #         job_country = ""
+    #         if job_details.location and job_details.location.country:
+    #             job_country = job_details.location.country.strip().lower()
+    #         if job_country != user_country:
+    #             return False
 
-        if user_city:
-            job_city = "not specified"
-            if job_details.location and job_details.location.city:
-                job_city = job_details.location.city.strip().lower()
+    #     if user_city:
+    #         job_city = "not specified"
+    #         if job_details.location and job_details.location.city:
+    #             job_city = job_details.location.city.strip().lower()
             
-            if job_city != user_city and job_city != "not specified":
-                return False
+    #         if job_city != user_city and job_city != "not specified":
+    #             return False
                 
-        return True
+    #     return True
 
-    # Sort so that jobs matching country/city are on top, and then by percentage_match
-    enriched_results.sort(
-        key=lambda x: (get_location_match_score(x), x.match.percentage_match),
-        reverse=True
-    )
+    # # Sort so that jobs matching country/city are on top, and then by percentage_match
+    # enriched_results.sort(
+    #     key=lambda x: (get_location_match_score(x), x.match.percentage_match),
+    #     reverse=True
+    # )
             
     if not enriched_results:
         try:
