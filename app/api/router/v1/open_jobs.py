@@ -14,6 +14,9 @@ from app.services.open_job_service import OpenJobService
 from app.services.email_service import EmailService
 from pydantic import BaseModel, Field
 
+from job_processor.services.qdrant_service import QdrantService
+from job_processor.config import Config
+
 class SingleMatchRequest(BaseModel):
     model_config = {"populate_by_name": True}
     email: str
@@ -462,15 +465,26 @@ async def match_single_job(
 @router.get("/vectors/weighted-count", status_code=status.HTTP_200_OK)
 async def get_weighted_vector_count():
     """
-    Returns the total number of open_jobs_vectors multiplied by 1000.
+    Returns the total number of points in Qdrant open_jobs_vectors multiplied by 1000.
     """
-    count = await OpenJobsVector.count()
-    weighted_count = count * 1000
-    
-    return {
-        "total_vectors": count,
-        "weighted_count": weighted_count
-    }
+    try:
+        qdrant_service = QdrantService()
+        count = qdrant_service.get_collection_count()
+        weighted_count = count * 1000
+        
+        return {
+            "total_vectors": count,
+            "weighted_count": weighted_count
+        }
+    except Exception as e:
+        logger.error(f"Error in get_weighted_vector_count: {e}")
+        # Fallback to MongoDB count if Qdrant fails
+        count = await OpenJobsVector.count()
+        return {
+            "total_vectors": count,
+            "weighted_count": count * 1000,
+            "error": str(e)
+        }
 
 @router.get("/vectors", response_model=List[OpenJobsVector], status_code=status.HTTP_200_OK)
 async def get_open_jobs_vectors(admin: User = Depends(get_admin_user)):

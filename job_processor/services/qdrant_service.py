@@ -223,3 +223,12 @@ class QdrantService:
         except Exception as e:
             logger.error(f"Error getting bulk similarity scores: {e}")
             return {}
+
+    def get_collection_count(self) -> int:
+        """Returns the total number of points in the jobs collection."""
+        try:
+            collection_info = self.client.get_collection(collection_name=self.job_collection)
+            return collection_info.points_count
+        except Exception as e:
+            logger.error(f"Error getting collection count from Qdrant: {e}")
+            return 0
