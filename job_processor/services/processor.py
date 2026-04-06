@@ -466,6 +466,9 @@ class JobProcessor:
             
             # Fetch job_url from ProcessedOpenJobs
             processed_job = await ProcessedOpenJobs.find_one({"job_id": str(job_id)})
+            if(processed_job.job_url=="https://www.linkedin.com/jobs/view/4398001165/?alternateChannel=search&eBP=NOT_ELIGIBLE_FOR_CHARGING&refId=DeWctflgcSbZ3RYpjE5DmA%3D%3D&trackingId=mTApppLxzUXG48csitaQxA%3D%3D"):
+                print("Found the job")
+                print ("PERCENTAGE",percentage)    
             job_url = processed_job.job_url if processed_job else None
 
             # Check if match already exists
@@ -476,11 +479,11 @@ class JobProcessor:
             
             if exists:
                 if not overwrite:
-                    logger.info(f"[User {user_id}] Match with job {job_id} already exists — skipping")
+                    #logger.info(f"[User {user_id}] Match with job {job_id} already exists — skipping")
                     results.append(exists)
                     continue
                 else:
-                    logger.info(f"[User {user_id}] Match with job {job_id} exists — updating")
+                    #logger.info(f"[User {user_id}] Match with job {job_id} exists — updating")
                     exists.percentage_match = percentage
                     exists.job_url = job_url
                     await exists.save()
