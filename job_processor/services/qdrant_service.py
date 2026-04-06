@@ -227,8 +227,13 @@ class QdrantService:
     def get_collection_count(self) -> int:
         """Returns the total number of points in the jobs collection."""
         try:
-            collection_info = self.client.get_collection(collection_name=self.job_collection)
-            return collection_info.points_count
+            # Using count() API which is more efficient for just getting the total
+            result = self.client.count(
+                collection_name=self.job_collection,
+                exact=True
+            )
+            logger.info(f"Qdrant collection count for '{self.job_collection}': {result.count}")
+            return result.count
         except Exception as e:
-            logger.error(f"Error getting collection count from Qdrant: {e}")
+            logger.error(f"Error getting collection count from Qdrant for '{self.job_collection}': {e}")
             return 0
