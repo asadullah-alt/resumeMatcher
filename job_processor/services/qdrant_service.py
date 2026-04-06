@@ -179,7 +179,7 @@ class QdrantService:
                 collection_name=self.job_collection,
                 query=dense_vector,
                 using="dense",
-                filter=qmodels.Filter(
+                query_filter=qmodels.Filter(
                     must=[
                         qmodels.FieldCondition(
                             key="job_id",
@@ -207,7 +207,7 @@ class QdrantService:
                 collection_name=self.job_collection,
                 query=dense_vector,
                 using="dense",
-                filter=qmodels.Filter(
+                query_filter=qmodels.Filter(
                     must=[
                         qmodels.FieldCondition(
                             key="job_id",
