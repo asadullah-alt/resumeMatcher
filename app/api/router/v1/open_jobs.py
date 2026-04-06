@@ -13,9 +13,6 @@ from app.services.open_job_service import OpenJobService
 from app.services.email_service import EmailService
 from pydantic import BaseModel, Field
 
-class SingleMatchRequest(BaseModel):
-    email: str
-    job_url: str = Field(..., alias="jobUrl")
 from app.models.user import User
 from app.models.resume import Resume, ProcessedResume
 from app.services import ResumeService
@@ -404,14 +401,14 @@ async def match_user_to_jobs(
 
 @router.post("/match/single", status_code=status.HTTP_200_OK)
 async def match_single_job(
-    request: SingleMatchRequest,
+    email: str,
+    jobUrl: str,
     admin: User = Depends(get_admin_user)
 ):
     """
     Calculates the match percentage for a specific job URL and user email.
     """
-    email = request.email
-    job_url = request.job_url
+    job_url = jobUrl
     
     logger.info(f"--- [match_single_job] Request for email: {email}, job_url: {job_url} ---")
     
