@@ -8,7 +8,10 @@ from beanie import Document
 from pydantic import Field, BaseModel, EmailStr, ConfigDict
 from app.core.config import settings
 from app.models.account_type import AccountType
-
+class FeedbackEntry(BaseModel):
+    rating: int
+    description: str = None
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 class LocalAuth(BaseModel):
     email: EmailStr
     password: Optional[str] = None
@@ -52,7 +55,7 @@ class User(Document):
     verification_attempts: Optional[VerificationAttempts] = Field(None, alias="verificationAttempts")
     
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    
+    feedback: list[FeedbackEntry] = Field(default_factory=list)
     # Billing fields
     account_type: AccountType = Field(default=AccountType.JOB_TRACKER)
     credits_remaining: int = Field(default=5)
