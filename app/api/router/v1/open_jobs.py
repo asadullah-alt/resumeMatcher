@@ -471,7 +471,7 @@ async def get_weighted_vector_count():
         qdrant_service = QdrantService()
         logger.info(f"Using Qdrant service for count. Collection Name: {qdrant_service.job_collection}")
         count = qdrant_service.get_collection_count()
-        weighted_count = count * 1000
+        weighted_count = count * 100
         
         logger.info(f"Count returned from Qdrant: {count}")
         return {
