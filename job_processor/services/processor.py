@@ -469,15 +469,28 @@ class JobProcessor:
         # 5. Save/Update match results in MongoDB
         results = []
         cutoff_date = datetime.now(UTC) - timedelta(days=20)
-        
+
+        # Batch-fetch all ProcessedOpenJobs and existing UserJobMatch records
+        # to avoid N+1 queries inside the loop below.
+        all_job_ids = [str(m["job_id"]) for m in hybrid_matches]
+        processed_jobs_list = await ProcessedOpenJobs.find(
+            {"job_id": {"$in": all_job_ids}}
+        ).to_list()
+        processed_jobs_map = {pj.job_id: pj for pj in processed_jobs_list}
+
+        existing_matches_list = await UserJobMatch.find(
+            {"user_id": str(user_id), "job_id": {"$in": all_job_ids}}
+        ).to_list()
+        existing_matches_map = {m.job_id: m for m in existing_matches_list}
+
         for match in hybrid_matches:
             job_id = match["job_id"]
-            
-            # Fetch job details and check age
-            processed_job = await ProcessedOpenJobs.find_one({"job_id": str(job_id)})
+            job_id_str = str(job_id)
+
+            processed_job = processed_jobs_map.get(job_id_str)
             if not processed_job:
                 continue
-                
+
             # Filter by age (prefer date_posted, fallback to processed_at)
             job_date = None
             if processed_job.date_posted and str(processed_job.date_posted).strip() != "":
@@ -485,37 +498,31 @@ class JobProcessor:
                     job_date = parser.parse(str(processed_job.date_posted))
                 except Exception:
                     job_date = None
-            
+
             if not job_date:
                 job_date = processed_job.processed_at
-                
+
             # Ensure timezone awareness
             if job_date.tzinfo is None:
                 job_date = job_date.replace(tzinfo=UTC)
-                
+
             if job_date < cutoff_date:
                 logger.info(f"[User {user_id}] Job {job_id} (Date: {job_date}) is older than 20 days — skipping match")
                 continue
-            
+
             # Use semantic similarity if available, fallback to something safe
             similarity = similarity_scores.get(job_id, 0.0)
             percentage = min(max(similarity * 100, 0.0), 100.0)
-            
+
             job_url = processed_job.job_url
 
-            # Check if match already exists
-            exists = await UserJobMatch.find_one({
-                "user_id": str(user_id),
-                "job_id": str(job_id)
-            })
-            
+            exists = existing_matches_map.get(job_id_str)
+
             if exists:
                 if not overwrite:
-                    #logger.info(f"[User {user_id}] Match with job {job_id} already exists — skipping")
                     results.append(exists)
                     continue
                 else:
-                    #logger.info(f"[User {user_id}] Match with job {job_id} exists — updating")
                     exists.percentage_match = percentage
                     exists.job_url = job_url
                     await exists.save()
@@ -524,7 +531,7 @@ class JobProcessor:
 
             match_doc = UserJobMatch(
                 user_id=str(user_id),
-                job_id=str(job_id),
+                job_id=job_id_str,
                 job_url=job_url,
                 percentage_match=percentage
             )
