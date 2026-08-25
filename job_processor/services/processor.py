@@ -539,7 +539,7 @@ class JobProcessor:
                 job_url=job_url,
                 percentage_match=percentage
             )
-            if match_doc.percentage_match > 50:
+            if match_doc.percentage_match > 30:
                 await match_doc.insert()
                 results.append(match_doc)
 
