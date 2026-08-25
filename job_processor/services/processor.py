@@ -443,8 +443,12 @@ class JobProcessor:
         # 2. Retrieve vectors from Qdrant
         point_data = self.qdrant.get_point_by_id(self.qdrant.resume_collection, resume_id)
         if not point_data or "vectors" not in point_data:
-            logger.warning(f"[User {user_id}] Vectors for resume {resume_id} not found in Qdrant — matching aborted")
-            return
+            logger.warning(f"[User {user_id}] Vectors for resume {resume_id} not found in Qdrant. Attempting to create vectors now.")
+            await self._process_new_resume(resume, overwrite=True)
+            point_data = self.qdrant.get_point_by_id(self.qdrant.resume_collection, resume_id)
+            if not point_data or "vectors" not in point_data:
+                logger.error(f"[User {user_id}] Failed to create vectors for resume {resume_id} — matching aborted")
+                return
 
         vectors = point_data["vectors"]
         dense_vec = vectors.get("dense")
@@ -581,8 +585,12 @@ class JobProcessor:
         # 3. Retrieve vectors from Qdrant
         point_data = self.qdrant.get_point_by_id(self.qdrant.resume_collection, resume_id)
         if not point_data or "vectors" not in point_data:
-            logger.warning(f"[User {user_id}] Vectors for resume {resume_id} not found in Qdrant")
-            return 0.0
+            logger.warning(f"[User {user_id}] Vectors for resume {resume_id} not found in Qdrant. Attempting to create vectors now.")
+            await self._process_new_resume(resume, overwrite=True)
+            point_data = self.qdrant.get_point_by_id(self.qdrant.resume_collection, resume_id)
+            if not point_data or "vectors" not in point_data:
+                logger.error(f"[User {user_id}] Failed to create vectors for resume {resume_id} — matching aborted")
+                return 0.0
 
         vectors = point_data["vectors"]
         dense_vec = vectors.get("dense")
