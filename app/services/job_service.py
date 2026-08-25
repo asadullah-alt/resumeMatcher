@@ -656,7 +656,7 @@ class JobService:
                                     <!-- CTA -->
                                     <tr>
                                         <td style="padding: 10px 30px 30px 30px; text-align: center;">
-                                            <a href="https://resume.bhaikaamdo.com/api/v1"
+                                            <a href="https://bhaikaamdo.com"
                                                style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                                                       color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 8px;
                                                       font-size: 16px; font-weight: 700; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);">
