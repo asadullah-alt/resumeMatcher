@@ -440,3 +440,296 @@ class JobService:
             "processed_jobs": processed_jobs,
             "improvements": improvements
         }
+
+    async def send_top_matches_email_to_all_users(self) -> None:
+        """
+        Background task: iterates over ALL users, re-runs matching for each,
+        then sends an email with their top 3 matched jobs.
+
+        Designed to be fired via asyncio.create_task() so the calling endpoint
+        returns immediately (non-blocking). Results are logged, and a summary
+        email is sent to the admin when the run finishes.
+        """
+        from app.models.user import User
+        from app.models.resume import ProcessedResume
+        from job_processor.models.job import UserJobMatch, ProcessedOpenJobs
+        from job_processor.services.processor import JobProcessor
+        from app.services.email_service import EmailService
+
+        logger.info("=== [send_top_matches_email_to_all_users] Background task STARTED ===")
+
+        email_service = EmailService()
+        users = await User.find_all().to_list()
+
+        sent_count = 0
+        skipped_count = 0
+        failed_count = 0
+
+        for user in users:
+            user_id = str(user.id)
+            try:
+                # --- Resolve user email ---
+                user_email = None
+                user_name = None
+
+                if user.local and user.local.email:
+                    user_email = user.local.email
+                elif user.google and user.google.email:
+                    user_email = user.google.email
+                    user_name = user.google.name
+                elif user.linkedin and user.linkedin.email:
+                    user_email = user.linkedin.email
+                    user_name = user.linkedin.name
+                elif user.facebook and user.facebook.email:
+                    user_email = user.facebook.email
+                    user_name = user.facebook.name
+
+                if not user_email:
+                    skipped_count += 1
+                    continue
+
+                if not user_name:
+                    user_name = user_email.split("@")[0].title()
+
+                # --- Check if user has a default resume (skip if not) ---
+                default_resume = await ProcessedResume.find_one(
+                    {"user_id": user_id, "default": True}
+                )
+                if not default_resume:
+                    logger.info(f"[User {user_id}] No default resume — skipping")
+                    skipped_count += 1
+                    continue
+
+                # --- Step 1: Run matching engine for this user ---
+                logger.info(f"[User {user_id}] Running match engine...")
+                try:
+                    processor = JobProcessor(user_id=user_id)
+                    await processor.match_user_resumes_to_jobs(user_id)
+                except Exception as match_err:
+                    logger.error(
+                        f"[User {user_id}] Matching failed: {match_err} — "
+                        f"will still try to email existing matches"
+                    )
+
+                # --- Step 2: Fetch top 3 matches (percentage_match > 30, newest first) ---
+                matches = await UserJobMatch.find(
+                    UserJobMatch.user_id == user_id,
+                    UserJobMatch.percentage_match > 30
+                ).sort(-UserJobMatch.created_at).limit(3).to_list()
+
+                if not matches:
+                    logger.info(f"[User {user_id}] No matches > 30% — skipping email")
+                    skipped_count += 1
+                    continue
+
+                # --- Step 3: Enrich matches with job details & build HTML ---
+                job_cards_html = ""
+                for match in matches:
+                    job = await ProcessedOpenJobs.find_one(
+                        ProcessedOpenJobs.job_id == match.job_id
+                    )
+                    if not job:
+                        continue
+
+                    company_name = "Unknown Company"
+                    if job.company_profile and job.company_profile.companyName:
+                        company_name = job.company_profile.companyName
+
+                    job_title = job.job_title or "Untitled Position"
+                    location_str = "Not specified"
+                    if job.location:
+                        parts = [p for p in [job.location.city, job.location.country] if p]
+                        if parts:
+                            location_str = ", ".join(parts)
+
+                    match_pct = round(match.percentage_match, 1)
+                    job_url = job.job_url or "#"
+                    employment_type = job.employment_type or "Not specified"
+
+                    # Colour the match badge based on score
+                    if match_pct >= 70:
+                        badge_color = "#22c55e"  # green
+                    elif match_pct >= 50:
+                        badge_color = "#f59e0b"  # amber
+                    else:
+                        badge_color = "#64748b"  # slate
+
+                    job_cards_html += f"""
+                    <tr>
+                        <td style="padding: 0 0 20px 0;">
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"
+                                   style="background-color: #ffffff; border-radius: 10px; overflow: hidden;
+                                          box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #e5e7eb;">
+                                <tr>
+                                    <td style="padding: 24px;">
+                                        <!-- Match Badge -->
+                                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                            <tr>
+                                                <td>
+                                                    <span style="display: inline-block; background-color: {badge_color};
+                                                                 color: #ffffff; padding: 4px 12px; border-radius: 20px;
+                                                                 font-size: 13px; font-weight: 700;">
+                                                        {match_pct}% Match
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                        <!-- Job Title -->
+                                        <h3 style="margin: 12px 0 4px 0; font-size: 18px; color: #1e293b;">
+                                            {job_title}
+                                        </h3>
+                                        <!-- Company & Location -->
+                                        <p style="margin: 0 0 4px 0; font-size: 14px; color: #667eea; font-weight: 600;">
+                                            {company_name}
+                                        </p>
+                                        <p style="margin: 0 0 16px 0; font-size: 13px; color: #6b7280;">
+                                            📍 {location_str} &nbsp;|&nbsp; 💼 {employment_type}
+                                        </p>
+                                        <!-- CTA -->
+                                        <a href="{job_url}"
+                                           style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                                  color: #ffffff; text-decoration: none; padding: 10px 24px; border-radius: 6px;
+                                                  font-size: 14px; font-weight: 600;">
+                                            View Job &rarr;
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    """
+
+                if not job_cards_html:
+                    skipped_count += 1
+                    continue
+
+                # --- Step 4: Build the full email HTML ---
+                email_html = f"""
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Your Latest Job Matches</title>
+                </head>
+                <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f4;">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f4f4f4;">
+                        <tr>
+                            <td style="padding: 40px 20px;">
+                                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"
+                                       style="max-width: 600px; margin: 0 auto; background-color: #f9fafb; border-radius: 12px; overflow: hidden;
+                                              box-shadow: 0 4px 16px rgba(0,0,0,0.08);">
+
+                                    <!-- Header -->
+                                    <tr>
+                                        <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
+                                            <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700; line-height: 1.3;">
+                                                🎯 Your Top Job Matches
+                                            </h1>
+                                            <p style="margin: 10px 0 0 0; color: #e0e7ff; font-size: 16px;">
+                                                Tailored to your resume — don't miss out!
+                                            </p>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Greeting -->
+                                    <tr>
+                                        <td style="padding: 30px 30px 10px 30px;">
+                                            <p style="margin: 0; font-size: 16px; color: #333333; line-height: 1.6;">
+                                                Hi <strong>{user_name}</strong>,
+                                            </p>
+                                            <p style="margin: 10px 0 0 0; font-size: 15px; color: #555555; line-height: 1.6;">
+                                                We found some great opportunities that match your skills. Here are your latest top matches:
+                                            </p>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Job Cards -->
+                                    <tr>
+                                        <td style="padding: 20px 30px;">
+                                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                                {job_cards_html}
+                                            </table>
+                                        </td>
+                                    </tr>
+
+                                    <!-- CTA -->
+                                    <tr>
+                                        <td style="padding: 10px 30px 30px 30px; text-align: center;">
+                                            <a href="https://bhaikaamdo.com"
+                                               style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                                      color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 8px;
+                                                      font-size: 16px; font-weight: 700; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);">
+                                                See All Matches
+                                            </a>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Signature -->
+                                    <tr>
+                                        <td style="padding: 0 30px 30px 30px;">
+                                            <p style="margin: 0 0 5px 0; color: #333; font-size: 15px;">Best regards,</p>
+                                            <p style="margin: 0; color: #667eea; font-size: 15px; font-weight: 600;">The Bhai Kaam Do Team</p>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Footer -->
+                                    <tr>
+                                        <td style="background-color: #f0f0f5; padding: 24px 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+                                            <p style="margin: 0; color: #6b7280; font-size: 13px;">
+                                                &copy; 2026 Bhai Kaam Do &middot;
+                                                <a href="mailto:support@bhaikaamdo.com" style="color: #667eea; text-decoration: none;">Contact Support</a>
+                                            </p>
+                                        </td>
+                                    </tr>
+
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </body>
+                </html>
+                """
+
+                # --- Step 5: Send ---
+                subject = f"🎯 {user_name}, your top 3 job matches are here!"
+                success = email_service.send_email(user_email, subject, email_html)
+
+                if success:
+                    sent_count += 1
+                    logger.info(f"[User {user_id}] ✅ Email sent to {user_email} ({len(matches)} matches)")
+                else:
+                    failed_count += 1
+                    logger.error(f"[User {user_id}] ❌ Email failed for {user_email}")
+
+            except Exception as e:
+                failed_count += 1
+                logger.error(f"[User {user_id}] ❌ Unexpected error: {e}")
+
+        # --- Summary ---
+        logger.info(
+            f"=== [send_top_matches_email_to_all_users] FINISHED === "
+            f"sent={sent_count}, skipped={skipped_count}, failed={failed_count}"
+        )
+
+        # Send a summary email to admin
+        try:
+            admin_summary = f"""
+            <html><body>
+                <h2>Top Matches Email Run Complete</h2>
+                <ul>
+                    <li><strong>Total users:</strong> {len(users)}</li>
+                    <li><strong>Emails sent:</strong> {sent_count}</li>
+                    <li><strong>Skipped:</strong> {skipped_count}</li>
+                    <li><strong>Failed:</strong> {failed_count}</li>
+                </ul>
+            </body></html>
+            """
+            email_service.send_email(
+                "asadullahbeg@gmail.com",
+                f"[Admin] Top Matches Email Run: {sent_count} sent, {failed_count} failed",
+                admin_summary
+            )
+        except Exception:
+            logger.error("Failed to send admin summary email")
+

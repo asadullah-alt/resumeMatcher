@@ -983,3 +983,22 @@ async def send_match_notifications_all(
         "emails_failed": failed_count,
         "users_skipped_no_email_or_not_found": skipped_count
     }
+
+@router.post("/email/top-matches", status_code=status.HTTP_202_ACCEPTED)
+async def trigger_top_matches_email(admin: User = Depends(get_admin_user)):
+    """
+    Fires the top-matches email pipeline as a background task.
+    For each user: runs matching engine → fetches top 3 → sends email.
+    Returns 202 immediately; admin receives a summary email when done.
+    """
+    from app.services.job_service import JobService
+
+    job_service = JobService(db=None)
+    asyncio.create_task(job_service.send_top_matches_email_to_all_users())
+
+    logger.info("--- [trigger_top_matches_email] Background task dispatched ---")
+    return {
+        "message": "Top matches email task has been dispatched. "
+                   "You will receive a summary email at asadullahbeg@gmail.com when it finishes."
+    }
+
