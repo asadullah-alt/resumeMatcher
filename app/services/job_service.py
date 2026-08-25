@@ -511,11 +511,11 @@ class JobService:
                         f"will still try to email existing matches"
                     )
 
-                # --- Step 2: Fetch top 3 matches (percentage_match > 30, newest first) ---
+                # --- Step 2: Fetch top 5 matches (percentage_match > 30, newest first) ---
                 matches = await UserJobMatch.find(
                     UserJobMatch.user_id == user_id,
                     UserJobMatch.percentage_match > 30
-                ).sort(-UserJobMatch.created_at).limit(3).to_list()
+                ).sort(-UserJobMatch.created_at).limit(5).to_list()
 
                 if not matches:
                     logger.info(f"[User {user_id}] No matches > 30% — skipping email")
@@ -543,7 +543,7 @@ class JobService:
                             location_str = ", ".join(parts)
 
                     match_pct = round(match.percentage_match, 1)
-                    job_url = job.job_url or "#"
+                    job_url = f"https://bhaikaamdo.com/job/{job.job_id}"
                     employment_type = job.employment_type or "Not specified"
 
                     # Colour the match badge based on score
@@ -692,7 +692,7 @@ class JobService:
                 """
 
                 # --- Step 5: Send ---
-                subject = f"🎯 {user_name}, your top 3 job matches are here!"
+                subject = f"🎯 {user_name}, your top 5 job matches are here!"
                 success = email_service.send_email(user_email, subject, email_html)
 
                 if success:
